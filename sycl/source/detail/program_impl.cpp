@@ -400,10 +400,12 @@ program_impl::get_pi_kernel_arg_mask_pair(const std::string &KernelName) const {
     }
     Plugin->checkPiResult(Err);
 
-    // Some PI Plugins (like OpenCL) require this call to enable USM
-    // For others, PI will turn this into a NOP.
-    Plugin->call<PiApiKind::piKernelSetExecInfo>(
-        Result.first, PI_USM_INDIRECT_ACCESS, sizeof(pi_bool), &PI_TRUE);
+    if (ProgramManager::getInstance().kernelUsesUSM(KernelName)) {
+      // Some PI Plugins (like OpenCL) require this call to enable USM
+      // For others, PI will turn this into a NOP.
+      Plugin->call<PiApiKind::piKernelSetExecInfo>(
+          Result.first, PI_USM_INDIRECT_ACCESS, sizeof(pi_bool), &PI_TRUE);
+    }
 
     return Result;
 }

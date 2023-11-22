@@ -1169,6 +1169,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
                     llvm::MDNode::get(getLLVMContext(), AttrMDArgs));
   }
 
+  if (getLangOpts().SYCLIsDevice && D && D->hasAttr<SYCLUsesUSMAttr>())
+    Fn->addFnAttr("sycl_uses_usm");
+
   if (getLangOpts().SYCLIsDevice && D &&
       D->hasAttr<SYCLAddIRAttributesFunctionAttr>()) {
     const auto *A = D->getAttr<SYCLAddIRAttributesFunctionAttr>();

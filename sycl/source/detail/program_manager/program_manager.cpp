@@ -763,10 +763,12 @@ ProgramManager::getOrCreateKernel(const ContextImplPtr &ContextImpl,
     Plugin->call<errc::kernel_not_supported, PiApiKind::piKernelCreate>(
         Program, KernelName.c_str(), &Kernel);
 
-    // Some PI Plugins (like OpenCL) require this call to enable USM
-    // For others, PI will turn this into a NOP.
-    Plugin->call<PiApiKind::piKernelSetExecInfo>(Kernel, PI_USM_INDIRECT_ACCESS,
-                                                 sizeof(pi_bool), &PI_TRUE);
+    if (kernelUsesUSM(KernelName)) {
+      // Some PI Plugins (like OpenCL) require this call to enable USM
+      // For others, PI will turn this into a NOP.
+      Plugin->call<PiApiKind::piKernelSetExecInfo>(
+          Kernel, PI_USM_INDIRECT_ACCESS, sizeof(pi_bool), &PI_TRUE);
+    }
 
     const KernelArgMask *ArgMask = nullptr;
     if (!m_UseSpvFile)
@@ -1331,6 +1333,17 @@ bool ProgramManager::kernelUsesAssert(const std::string &KernelName) const {
   return m_KernelUsesAssert.find(KernelName) != m_KernelUsesAssert.end();
 }
 
+void ProgramManager::cacheKernelUsesUSMInfo(RTDeviceBinaryImage &Img) {
+  const RTDeviceBinaryImage::PropertyRange &USMUsedRange = Img.getUSMUsed();
+  if (USMUsedRange.isAvailable())
+    for (const auto &Prop : USMUsedRange)
+      m_KernelUsesUSM.insert(Prop->Name);
+}
+
+bool ProgramManager::kernelUsesUSM(const std::string &KernelName) const {
+  return m_KernelUsesUSM.find(KernelName) != m_KernelUsesUSM.end();
+}
+
 void ProgramManager::addImages(pi_device_binaries DeviceBinary) {
   const bool DumpImages = std::getenv("SYCL_DUMP_IMAGES") && !m_UseSpvFile;
   for (int I = 0; I < DeviceBinary->NumDeviceBinaries; I++) {
@@ -1407,6 +1420,7 @@ void ProgramManager::addImages(pi_device_binaries DeviceBinary) {
     }
 
     cacheKernelUsesAssertInfo(*Img);
+    cacheKernelUsesUSMInfo(*Img);
 
     // Sort kernel ids for faster search
     std::sort(m_BinImg2KernelIDs[Img.get()]->begin(),
@@ -2420,8 +2434,10 @@ ProgramManager::getOrCreateKernel(const context &Context,
     Plugin->call<PiApiKind::piKernelCreate>(Program, KernelName.c_str(),
                                             &Kernel);
 
-    Plugin->call<PiApiKind::piKernelSetExecInfo>(Kernel, PI_USM_INDIRECT_ACCESS,
-                                                 sizeof(pi_bool), &PI_TRUE);
+    if (kernelUsesUSM(KernelName)) {
+      Plugin->call<PiApiKind::piKernelSetExecInfo>(
+          Kernel, PI_USM_INDIRECT_ACCESS, sizeof(pi_bool), &PI_TRUE);
+    }
 
     // Ignore possible m_UseSpvFile for now.
     // TODO consider making m_UseSpvFile interact with kernel bundles as well.

@@ -2158,6 +2158,7 @@ class SyclKernelDeclCreator : public SyclKernelFieldHandler {
   size_t LastParamIndex = 0;
   // Keeps track of whether we are currently handling fields inside a struct.
   int StructDepth = 0;
+  bool UsesUSM = false;
 
   void addParam(const FieldDecl *FD, QualType FieldTy) {
     ParamDesc newParamDesc = makeParamDesc(FD, FieldTy);
@@ -2395,6 +2396,9 @@ public:
     // diagnosed on the actual kernel.
     KernelDecl->addAttr(
         SYCLKernelAttr::CreateImplicit(SemaRef.getASTContext()));
+    if (UsesUSM)
+      KernelDecl->addAttr(
+          SYCLUsesUSMAttr::CreateImplicit(SemaRef.getASTContext()));
 
     SemaRef.addSyclDeviceDecl(KernelDecl);
   }
@@ -2472,6 +2476,7 @@ public:
   };
 
   bool handlePointerType(FieldDecl *FD, QualType FieldTy) final {
+    UsesUSM = true;
     QualType ModTy = ModifyAddressSpace(SemaRef, FieldTy);
     // When the kernel is generated, struct type kernel arguments are
     // decomposed; i.e. the parameters of the kernel are the fields of the

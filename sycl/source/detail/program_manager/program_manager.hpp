@@ -291,6 +291,8 @@ public:
 
   bool kernelUsesAssert(const std::string &KernelName) const;
 
+  bool kernelUsesUSM(const std::string &KernelName) const;
+
   std::set<RTDeviceBinaryImage *>
   getRawDeviceImages(const std::vector<kernel_id> &KernelIDs);
 
@@ -311,6 +313,9 @@ private:
 
   /// Add info on kernels using assert into cache
   void cacheKernelUsesAssertInfo(RTDeviceBinaryImage &Img);
+
+  /// Add info on kernels using USM into cache
+  void cacheKernelUsesUSMInfo(RTDeviceBinaryImage &Img);
 
   /// The three maps below are used during kernel resolution. Any kernel is
   /// identified by its name.
@@ -398,6 +403,7 @@ private:
   RTDeviceBinaryImageUPtr m_SpvFileImage;
 
   std::set<std::string> m_KernelUsesAssert;
+  std::set<std::string> m_KernelUsesUSM;
 
   // Maps between device_global identifiers and associated information.
   std::unordered_map<std::string, std::unique_ptr<DeviceGlobalMapEntry>>

@@ -241,6 +241,10 @@ void writeToFile(const std::string &Filename, const std::string &Content) {
   OS.close();
 }
 
+bool isKernelFunction(const Function &F) {
+  return F.getCallingConv() == CallingConv::SPIR_KERNEL;
+}
+
 // This function traverses over reversed call graph by BFS algorithm.
 // It means that an edge links some function @func with functions
 // which contain call of function @func. It starts from
@@ -310,6 +314,11 @@ std::vector<StringRef> getKernelNamesUsingAssert(const Module &M) {
   }
 
   return SPIRKernelNames;
+}
+
+// Return true if uses USM pointers.
+bool isKernelUsingUSM(const Function &Func) {
+  return Func.hasFnAttribute("sycl_uses_usm");
 }
 
 // Gets reqd_work_group_size information for function Func.
@@ -535,6 +544,11 @@ std::string saveModuleProperties(module_split::ModuleDesc &MD,
     std::vector<StringRef> FuncNames = getKernelNamesUsingAssert(M);
     for (const StringRef &FName : FuncNames)
       PropSet[PropSetRegTy::SYCL_ASSERT_USED].insert({FName, true});
+  }
+  {
+    for (const Function &Func : M.functions())
+      if (isKernelFunction(Func) && isKernelUsingUSM(Func))
+        PropSet[PropSetRegTy::SYCL_USM_USED].insert({Func.getName(), true});
   }
 
   if (GlobProps.EmitDeviceGlobalPropSet) {
