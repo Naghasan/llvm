@@ -10075,6 +10075,11 @@ void OffloadWrapper::ConstructJob(Compilation &C, const JobAction &JA,
       // binary for that target.
       TargetTripleOpt = ("llvm_" + TargetTripleOpt).str();
     }
+    else {
+      if (TT.isAMDGPU()) {
+        TargetTripleOpt = (TargetTripleOpt + "-" + JA.getOffloadingArch()).str();
+      }
+    }
 
     const bool IsSYCLNativeCPU = isSYCLNativeCPU(TC);
     if (IsSYCLNativeCPU) {

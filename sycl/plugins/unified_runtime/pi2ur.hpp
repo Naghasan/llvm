@@ -1492,10 +1492,15 @@ piextDeviceSelectBinary(pi_device Device, // TODO: does this need to be context?
                     __SYCL_PI_DEVICE_BINARY_TARGET_NVPTX64) == 0)
       UrBinaries[BinaryCount].pDeviceTargetSpec =
           UR_DEVICE_BINARY_TARGET_NVPTX64;
-    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
-                    __SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN) == 0)
+    else if (strncmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN,
+            (sizeof(__SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN))-1) == 0)
       UrBinaries[BinaryCount].pDeviceTargetSpec =
-          UR_DEVICE_BINARY_TARGET_AMDGCN;
+          Binaries[BinaryCount]->DeviceTargetSpec;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_LLVM_AMDGCN;
     else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
                     __SYCL_PI_DEVICE_BINARY_TARGET_NATIVE_CPU) == 0)
       UrBinaries[BinaryCount].pDeviceTargetSpec =

@@ -6100,8 +6100,14 @@ class OffloadingActionBuilder final {
         if (Triple.isAMDGCN() && llvm::none_of(GpuArchList, [&](auto &P) {
               return P.first.isAMDGCN();
             })) {
+          if (Args.hasArg(options::OPT_fsycl_embed_ir)) {
+            const char *DefaultArch = CudaArchToString(CudaArch::GFX1201);
+            GpuArchList.emplace_back(Triple, DefaultArch);
+          }
+          else {
           C.getDriver().Diag(clang::diag::err_drv_sycl_missing_amdgpu_arch)
               << (SYCLTripleList.size() > 1) << Triple.str();
+          }
           return true;
         }
       }

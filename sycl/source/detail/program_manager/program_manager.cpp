@@ -71,6 +71,7 @@ ProgramManager &ProgramManager::getInstance() {
 
 static sycl::detail::pi::PiProgram
 createBinaryProgram(const ContextImplPtr Context, const device &Device,
+                    const unsigned char * DeviceTargetSpec,
                     const unsigned char *Data, size_t DataLen,
                     const std::vector<pi_device_binary_property> Metadata) {
   const PluginPtr &Plugin = Context->getPlugin();
@@ -83,6 +84,10 @@ createBinaryProgram(const ContextImplPtr Context, const device &Device,
   assert(NumDevices > 0 &&
          "Only a single device is supported for AOT compilation");
 #endif
+
+  if (Dev.get_backend() == backend::ext_oneapi_hip && DeviceTargetSpec == __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) {
+
+  }
 
   sycl::detail::pi::PiProgram Program;
   const sycl::detail::pi::PiDevice PiDevice =

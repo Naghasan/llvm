@@ -666,8 +666,26 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
   AddToConfigHandle(
       ::jit_compiler::option::JITEnableVerbose::set(DebugEnabled));
 
-  std::string TargetCPU =
-      detail::SYCLConfig<detail::SYCL_JIT_TARGET_CPU>::get();
+  auto GetTargetCPU = [&]() {
+    std::string Target = detail::SYCLConfig<detail::SYCL_JIT_TARGET_CPU>::get();
+    if (Target == "" && Queue->getContextImplPtr()->getBackend() == backend::ext_oneapi_hip) {
+      auto Plugin = Queue->getPlugin();
+      std::string DeviceNameString;
+      size_t DeviceNameStrSize = 0;
+      Plugin->call<PiApiKind::piDeviceGetInfo>(Queue->getDeviceImplPtr()->getHandleRef(), PI_DEVICE_INFO_NAME, 0,
+                                              nullptr, &DeviceNameStrSize);
+      if (DeviceNameStrSize > 0) {
+        std::vector<char> DeviceName(DeviceNameStrSize);
+        Plugin->call<PiApiKind::piDeviceGetInfo>(Queue->getDeviceImplPtr()->getHandleRef(), PI_DEVICE_INFO_NAME,
+                                                DeviceNameStrSize,
+                                                DeviceName.data(), nullptr);
+        return std::string(DeviceName.data());
+      }
+    }
+    return Target;
+  };
+
+  std::string TargetCPU = GetTargetCPU();
   std::string TargetFeatures =
       detail::SYCLConfig<detail::SYCL_JIT_TARGET_FEATURES>::get();
 

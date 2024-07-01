@@ -96,6 +96,9 @@ llvm::computeDeviceRequirements(const Module &M,
       if (!Val.empty())
         Reqs.JointMatrixMad = Val;
     }
+    if (F.hasFnAttribute("target-cpu")) {
+      Reqs.OffloadArch = F.getFnAttribute("target-cpu").getValueAsString();
+    }
   }
 
   // Process just the entry points in the module
@@ -165,6 +168,9 @@ std::map<StringRef, util::PropertyValue> SYCLDeviceRequirements::asMap() const {
 
   if (WorkGroupNumDim.has_value())
     Requirements["work_group_num_dim"] = *WorkGroupNumDim;
+
+  if (OffloadArch.has_value())
+    Requirements["offload_arch"] = *OffloadArch;
 
   return Requirements;
 }

@@ -48,6 +48,7 @@ struct SYCLDeviceRequirements {
   std::optional<llvm::SmallString<256>> JointMatrix;
   std::optional<llvm::SmallString<256>> JointMatrixMad;
   std::optional<uint32_t> SubGroupSize;
+  std::optional<llvm::SmallString<256>> OffloadArch;
 
   std::map<StringRef, util::PropertyValue> asMap() const;
 };
