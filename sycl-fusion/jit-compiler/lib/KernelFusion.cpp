@@ -73,7 +73,7 @@ static bool isTargetFormatSupported(BinaryFormat TargetFormat) {
 extern "C" JITResult
 materializeSpecConstants(const char *KernelName,
                          jit_compiler::SYCLKernelBinaryInfo &BinInfo,
-                         const View<unsigned char> &SpecConstBlob,
+                         View<unsigned char> SpecConstBlob,
                          const char *TargetCPU, const char *TargetFeatures) {
   auto &JITCtx = JITContext::getInstance();
 
@@ -100,7 +100,7 @@ materializeSpecConstants(const char *KernelName,
   }
   std::unique_ptr<llvm::Module> NewMod = std::move(*ModOrError);
   if (!fusion::FusionPipeline::runMaterializerPasses(
-          *NewMod, SpecConstBlob.begin(), SpecConstBlob.size()) ||
+          *NewMod, SpecConstBlob.to<llvm::ArrayRef>()) ||
       !NewMod->getFunction(KernelName)) {
     return JITResult{"Materializer passes should not fail"};
   }

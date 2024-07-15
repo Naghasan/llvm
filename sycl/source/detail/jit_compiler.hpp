@@ -40,9 +40,19 @@ public:
   std::unique_ptr<detail::CG>
   fuseKernels(QueueImplPtr Queue, std::vector<ExecCGCommand *> &InputKernels,
               const property_list &);
-  sycl::detail::pi::PiKernel materializeSpecConstants(
-      QueueImplPtr Queue, const RTDeviceBinaryImage *BinImage,
-      const std::string &KernelName, std::vector<unsigned char> &SpecConstBlob);
+
+  RTDeviceBinaryImage&& jitModule(
+    DeviceImplPtr Device, const pi_device_binary_struct &RawDeviceImage,
+    pi::PiDeviceBinaryType ImageType,
+    bool RegisterImage,
+    const std::string &KernelName = {},
+    const std::vector<unsigned char> &SpecConstBlob = {});
+
+  sycl::detail::pi::PiKernel
+  materializeSpecConstants(QueueImplPtr Queue,
+                           const RTDeviceBinaryImage *BinImage,
+                           const std::string &KernelName,
+                           const std::vector<unsigned char> &SpecConstBlob);
 
   bool isAvailable() { return Available; }
 
@@ -61,7 +71,7 @@ private:
 
   pi_device_binaries
   createPIDeviceBinary(const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
-                       ::jit_compiler::BinaryFormat Format);
+                       ::jit_compiler::BinaryFormat Format,const std::string &Arch = {});
 
   std::vector<uint8_t>
   encodeArgUsageMask(const ::jit_compiler::ArgUsageMask &Mask) const;

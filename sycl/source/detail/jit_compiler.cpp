@@ -92,8 +92,8 @@ translateBinaryImageFormat(pi::PiDeviceBinaryType Type) {
   }
 }
 
-::jit_compiler::BinaryFormat getTargetFormat(QueueImplPtr &Queue) {
-  auto Backend = Queue->getDeviceImplPtr()->getBackend();
+::jit_compiler::BinaryFormat getTargetFormat(DeviceImplPtr &Device) {
+  auto Backend = Device->getBackend();
   switch (Backend) {
   case backend::ext_oneapi_level_zero:
   case backend::opencl:
@@ -109,11 +109,11 @@ translateBinaryImageFormat(pi::PiDeviceBinaryType Type) {
   }
 }
 
-::jit_compiler::TargetInfo getTargetInfo(QueueImplPtr &Queue) {
-  ::jit_compiler::BinaryFormat Format = getTargetFormat(Queue);
+::jit_compiler::TargetInfo getTargetInfo(DeviceImplPtr Device) {
+  ::jit_compiler::BinaryFormat Format = getTargetFormat(Device);
   return ::jit_compiler::TargetInfo::get(
       Format, static_cast<::jit_compiler::DeviceArchitecture>(
-                  Queue->getDeviceImplPtr()->getDeviceArch()));
+                  Device->getDeviceArch()));
 }
 
 static ::jit_compiler::ParameterKind
@@ -625,40 +625,26 @@ updatePromotedArgs(const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
   }
 }
 
-sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
-    QueueImplPtr Queue, const RTDeviceBinaryImage *BinImage,
-    const std::string &KernelName, std::vector<unsigned char> &SpecConstBlob) {
-  if (!BinImage) {
-    throw sycl::exception(sycl::make_error_code(sycl::errc::invalid),
-                          "No suitable IR available for materializing");
-    return nullptr;
-  }
-  if (KernelName.empty()) {
-    throw sycl::exception(
-        sycl::make_error_code(sycl::errc::invalid),
-        "Cannot jit kernel with invalid kernel function name");
-    return nullptr;
-  }
-  auto &PM = detail::ProgramManager::getInstance();
-  if (auto CachedKernel =
-          PM.getCachedMaterializedKernel(KernelName, SpecConstBlob))
-    return CachedKernel;
-
-  auto &RawDeviceImage = BinImage->getRawData();
+RTDeviceBinaryImage&& jit_compiler::jitModule(
+    DeviceImplPtr Device, const pi_device_binary_struct &RawDeviceImage,
+    pi::PiDeviceBinaryType ImageType,
+    bool RegisterImage,
+    const std::string &KernelName,
+    const std::vector<unsigned char> &SpecConstBlob) {
   auto DeviceImageSize = static_cast<size_t>(RawDeviceImage.BinaryEnd -
                                              RawDeviceImage.BinaryStart);
   // Set 0 as the number of address bits, because the JIT compiler can set this
   // field based on information from LLVM module's data-layout.
-  auto BinaryImageFormat = translateBinaryImageFormat(BinImage->getFormat());
+  auto BinaryImageFormat = translateBinaryImageFormat(ImageType);
   if (BinaryImageFormat == ::jit_compiler::BinaryFormat::INVALID) {
     throw sycl::exception(sycl::make_error_code(sycl::errc::invalid),
-                          "No suitable IR available for materializing");
-    return nullptr;
+                          "No suitable IR available for JIT");
   }
   ::jit_compiler::SYCLKernelBinaryInfo BinInfo{
       BinaryImageFormat, 0, RawDeviceImage.BinaryStart, DeviceImageSize};
 
-  ::jit_compiler::TargetInfo TargetInfo = getTargetInfo(Queue);
+  ::jit_compiler::TargetInfo TargetInfo = getTargetInfo(Device);
+  ::jit_compiler::BinaryFormat TargetFormat = TargetInfo.getFormat();
   AddToConfigHandle(
       ::jit_compiler::option::JITTargetInfo::set(std::move(TargetInfo)));
   bool DebugEnabled =
@@ -667,16 +653,16 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
       ::jit_compiler::option::JITEnableVerbose::set(DebugEnabled));
 
   auto GetTargetCPU = [&]() {
-    std::string Target = detail::SYCLConfig<detail::SYCL_JIT_TARGET_CPU>::get();
-    if (Target == "" && Queue->getContextImplPtr()->getBackend() == backend::ext_oneapi_hip) {
-      auto Plugin = Queue->getPlugin();
+    std::string Target = detail::SYCLConfig<detail::SYCL_JIT_AMDGCN_PTX_TARGET_CPU>::get();
+    if (Target == "" && Device->getBackend() == backend::ext_oneapi_hip) {
+      auto Plugin = Device->getPlugin();
       std::string DeviceNameString;
       size_t DeviceNameStrSize = 0;
-      Plugin->call<PiApiKind::piDeviceGetInfo>(Queue->getDeviceImplPtr()->getHandleRef(), PI_DEVICE_INFO_NAME, 0,
+      Plugin->call<PiApiKind::piDeviceGetInfo>(Device->getHandleRef(), PI_DEVICE_INFO_NAME, 0,
                                               nullptr, &DeviceNameStrSize);
       if (DeviceNameStrSize > 0) {
         std::vector<char> DeviceName(DeviceNameStrSize);
-        Plugin->call<PiApiKind::piDeviceGetInfo>(Queue->getDeviceImplPtr()->getHandleRef(), PI_DEVICE_INFO_NAME,
+        Plugin->call<PiApiKind::piDeviceGetInfo>(Device->getHandleRef(), PI_DEVICE_INFO_NAME,
                                                 DeviceNameStrSize,
                                                 DeviceName.data(), nullptr);
         return std::string(DeviceName.data());
@@ -687,7 +673,7 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
 
   std::string TargetCPU = GetTargetCPU();
   std::string TargetFeatures =
-      detail::SYCLConfig<detail::SYCL_JIT_TARGET_FEATURES>::get();
+      detail::SYCLConfig<detail::SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES>::get();
 
   auto MaterializerResult =
       MaterializeSpecConstHandle(KernelName.c_str(), BinInfo, SpecConstBlob,
@@ -699,7 +685,6 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
       std::cerr << Message << "\n";
     }
     throw sycl::exception(sycl::make_error_code(sycl::errc::invalid), Message);
-    return nullptr;
   }
 
   auto &MaterializerKernelInfo = MaterializerResult.getKernelInfo();
@@ -709,6 +694,36 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
   MaterializedRawDeviceImage.BinaryEnd =
       MaterializerKernelInfo.BinaryInfo.BinaryStart +
       MaterializerKernelInfo.BinaryInfo.BinarySize;
+  // If asked, register the image to the program manager, this will allow the RT to pick up the binary for the other kernels.
+  if (RegisterImage) {
+    auto PIDeviceBinaries = createPIDeviceBinary(MaterializerKernelInfo, TargetFormat, TargetCPU);
+    detail::ProgramManager::getInstance().addImages(PIDeviceBinaries);
+  }
+
+// TODO: dangling pointer here
+  return RTDeviceBinaryImage{&MaterializedRawDeviceImage};
+}
+
+sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
+    QueueImplPtr Queue, const RTDeviceBinaryImage *BinImage,
+    const std::string &KernelName,
+    const std::vector<unsigned char> &SpecConstBlob) {
+  if (!BinImage) {
+    throw sycl::exception(sycl::make_error_code(sycl::errc::invalid),
+                          "No suitable IR available for materializing");
+  }
+  if (KernelName.empty()) {
+    throw sycl::exception(
+        sycl::make_error_code(sycl::errc::invalid),
+        "Cannot jit kernel with invalid kernel function name");
+  }
+  auto &PM = detail::ProgramManager::getInstance();
+  if (auto CachedKernel =
+          PM.getCachedMaterializedKernel(KernelName, SpecConstBlob))
+    return CachedKernel;
+
+  RTDeviceBinaryImage MaterializedRTDevBinImage{jitModule(Queue->getDeviceImplPtr(), BinImage->getRawData(), BinImage->getFormat(), /*RegisterImage=*/false,
+   KernelName, SpecConstBlob)};
 
   const bool OrigCacheCfg = SYCLConfig<SYCL_CACHE_IN_MEM>::get();
   if (OrigCacheCfg) {
@@ -720,7 +735,6 @@ sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
     SYCLConfig<SYCL_CACHE_IN_MEM>::reset();
   }
 
-  RTDeviceBinaryImage MaterializedRTDevBinImage{&MaterializedRawDeviceImage};
   const auto &Context = Queue->get_context();
   const auto &Device = Queue->get_device();
   auto NewKernel = PM.getOrCreateMaterializedKernel(
@@ -962,7 +976,7 @@ jit_compiler::fuseKernels(QueueImplPtr Queue,
   AddToConfigHandle(::jit_compiler::option::JITEnableCaching::set(
       detail::SYCLConfig<detail::SYCL_ENABLE_FUSION_CACHING>::get()));
 
-  ::jit_compiler::TargetInfo TargetInfo = getTargetInfo(Queue);
+  ::jit_compiler::TargetInfo TargetInfo = getTargetInfo(Queue->getDeviceImplPtr());
   ::jit_compiler::BinaryFormat TargetFormat = TargetInfo.getFormat();
   AddToConfigHandle(
       ::jit_compiler::option::JITTargetInfo::set(std::move(TargetInfo)));
@@ -1030,13 +1044,15 @@ jit_compiler::fuseKernels(QueueImplPtr Queue,
   FusedCG.reset(new detail::CGExecKernel(
       NDRDesc, nullptr, nullptr, std::move(KernelBundleImplPtr),
       std::move(CGData), std::move(FusedArgs), FusedOrCachedKernelName, {}, {},
-      CG::CGTYPE::Kernel, KernelCacheConfig, false /* KernelIsCooperative */));
+      CG::CGTYPE::Kernel, KernelCacheConfig, false /* KernelIsCooperative */,
+      false /* KernelUsesClusterLaunch*/));
   return FusedCG;
 }
 
 pi_device_binaries jit_compiler::createPIDeviceBinary(
     const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
-    ::jit_compiler::BinaryFormat Format) {
+    ::jit_compiler::BinaryFormat Format,
+    const std::string &Arch) {
 
   const char *TargetSpec = nullptr;
   pi_device_binary_type BinFormat = PI_DEVICE_BINARY_TYPE_NATIVE;
@@ -1047,6 +1063,7 @@ pi_device_binaries jit_compiler::createPIDeviceBinary(
     break;
   }
   case ::jit_compiler::BinaryFormat::AMDGCN: {
+    // TODO: use Arch
     TargetSpec = __SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN;
     BinFormat = PI_DEVICE_BINARY_TYPE_NONE;
     break;

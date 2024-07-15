@@ -272,10 +272,9 @@ public:
     if (ValStr) {
       // Throw if the input string is empty.
       if (ValStr[0] == '\0')
-        throw invalid_parameter_error(
-            "Invalid value for ONEAPI_DEVICE_SELECTOR environment "
-            "variable: value should not be null.",
-            PI_ERROR_INVALID_VALUE);
+        throw exception(make_error_code(errc::invalid),
+                        "Invalid value for ONEAPI_DEVICE_SELECTOR environment "
+                        "variable: value should not be null.");
 
       DeviceTargets =
           &GlobalHandler::instance().getOneapiDeviceSelectorTargets(ValStr);
@@ -333,17 +332,16 @@ public:
         try {
           Result = std::stoi(ValueStr);
         } catch (...) {
-          throw invalid_parameter_error(
-              "Invalid value for SYCL_QUEUE_THREAD_POOL_SIZE environment "
-              "variable: value should be a number",
-              PI_ERROR_INVALID_VALUE);
+          throw exception(make_error_code(errc::invalid),
+                          "Invalid value for SYCL_QUEUE_THREAD_POOL_SIZE "
+                          "environment variable: value should be a number");
         }
 
       if (Result < 1)
-        throw invalid_parameter_error(
+        throw exception(
+            make_error_code(errc::invalid),
             "Invalid value for SYCL_QUEUE_THREAD_POOL_SIZE environment "
-            "variable: value should be larger than zero",
-            PI_ERROR_INVALID_VALUE);
+            "variable: value should be larger than zero");
 
       return Result;
     }();
@@ -383,7 +381,7 @@ private:
       std::string Msg =
           std::string{"Invalid value for bool configuration variable "} +
           getName() + std::string{": "} + ValStr;
-      throw runtime_error(Msg, PI_ERROR_INVALID_OPERATION);
+      throw exception(make_error_code(errc::runtime), Msg);
     }
     return ValStr[0] == '1';
   }
@@ -592,32 +590,36 @@ template <> class SYCLConfig<SYCL_CACHE_IN_MEM> {
   using BaseT = SYCLConfigBase<SYCL_CACHE_IN_MEM>;
 
 public:
-  static bool get() {
-    constexpr bool DefaultValue = true;
+  static constexpr bool Default = true; // default is true
+  static bool get() { return getCachedValue(); }
+  static const char *getName() { return BaseT::MConfigName; }
+  static void reset() { (void)getCachedValue(/*ResetCache=*/true); }
 
-    const char *ValStr = getCachedValue();
-
+private:
+  static bool parseValue() {
+    const char *ValStr = BaseT::getRawValue();
     if (!ValStr)
-      return DefaultValue;
-
+      return Default;
+    if (strlen(ValStr) != 1 || (ValStr[0] != '0' && ValStr[0] != '1')) {
+      std::string Msg =
+          std::string{"Invalid value for bool configuration variable "} +
+          getName() + std::string{": "} + ValStr;
+      throw exception(make_error_code(errc::runtime), Msg);
+    }
     return ValStr[0] == '1';
   }
 
-  static void reset() { (void)getCachedValue(/*ResetCache=*/true); }
-
-  static const char *getName() { return BaseT::MConfigName; }
-
-private:
-  static const char *getCachedValue(bool ResetCache = false) {
-    static const char *ValStr = BaseT::getRawValue();
-    if (ResetCache)
-      ValStr = BaseT::getRawValue();
-    return ValStr;
+  static bool getCachedValue(bool ResetCache = false) {
+    static bool Val = parseValue();
+    if (ResetCache) {
+      Val = BaseT::getRawValue();
+    }
+    return Val;
   }
 };
 
-template <> class SYCLConfig<SYCL_JIT_KERNELS> {
-  using BaseT = SYCLConfigBase<SYCL_JIT_KERNELS>;
+template <> class SYCLConfig<SYCL_JIT_AMDGCN_PTX_KERNELS> {
+  using BaseT = SYCLConfigBase<SYCL_JIT_AMDGCN_PTX_KERNELS>;
 
 public:
   static bool get() {
@@ -640,8 +642,8 @@ private:
   }
 };
 
-template <> class SYCLConfig<SYCL_JIT_TARGET_CPU> {
-  using BaseT = SYCLConfigBase<SYCL_CACHE_IN_MEM>;
+template <> class SYCLConfig<SYCL_JIT_AMDGCN_PTX_TARGET_CPU> {
+  using BaseT = SYCLConfigBase<SYCL_JIT_AMDGCN_PTX_TARGET_CPU>;
 
 public:
   static std::string get() {
@@ -668,8 +670,8 @@ private:
   }
 };
 
-template <> class SYCLConfig<SYCL_JIT_TARGET_FEATURES> {
-  using BaseT = SYCLConfigBase<SYCL_CACHE_IN_MEM>;
+template <> class SYCLConfig<SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES> {
+  using BaseT = SYCLConfigBase<SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES>;
 
 public:
   static std::string get() {

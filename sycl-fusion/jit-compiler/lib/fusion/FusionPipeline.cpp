@@ -143,9 +143,8 @@ FusionPipeline::runFusionPasses(Module &Mod, SYCLModuleInfo &InputInfo,
   return std::make_unique<SYCLModuleInfo>(std::move(*NewModInfo.ModuleInfo));
 }
 
-bool FusionPipeline::runMaterializerPasses(llvm::Module &Mod,
-                                           const unsigned char *SpecConstData,
-                                           size_t SpecConstDataSize) {
+bool FusionPipeline::runMaterializerPasses(
+    llvm::Module &Mod, llvm::ArrayRef<unsigned char> SpecConstData) {
   PassBuilder PB;
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -157,13 +156,11 @@ bool FusionPipeline::runMaterializerPasses(llvm::Module &Mod,
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-  // Base the pipeline on O3 opt level.
-  ModulePassManager MPM =
-      PB.buildPerModuleDefaultPipeline(OptimizationLevel::O3);
+  ModulePassManager MPM;
   // Register inserter and materializer passes.
   {
     FunctionPassManager FPM;
-    MPM.addPass(SYCLSpecConstDataInserter{SpecConstData, SpecConstDataSize});
+    MPM.addPass(SYCLSpecConstDataInserter{SpecConstData});
     FPM.addPass(SYCLSpecConstMaterializer{});
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
   }
