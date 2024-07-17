@@ -74,6 +74,16 @@ jit_compiler::jit_compiler() {
       return false;
     }
 
+    this->JitModuleHandle =
+        reinterpret_cast<JitModuleFuncT>(
+            sycl::detail::pi::getOsLibraryFuncAddress(
+                LibraryPtr, "jitModule"));
+    if (!this->JitModuleHandle) {
+      printPerformanceWarning(
+          "Cannot resolve JIT library function entry point");
+      return false;
+    }
+
     return true;
   };
   Available = checkJITLibrary();
@@ -625,7 +635,7 @@ updatePromotedArgs(const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
   }
 }
 
-RTDeviceBinaryImage&& jit_compiler::jitModule(
+pi_device_binary jit_compiler::jitModule(
     DeviceImplPtr Device, const pi_device_binary_struct &RawDeviceImage,
     pi::PiDeviceBinaryType ImageType,
     bool RegisterImage,
@@ -675,7 +685,8 @@ RTDeviceBinaryImage&& jit_compiler::jitModule(
   std::string TargetFeatures =
       detail::SYCLConfig<detail::SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES>::get();
 
-  auto MaterializerResult =
+  auto MaterializerResult = KernelName.empty() ?
+  JitModuleHandle(BinInfo, TargetCPU.c_str(), TargetFeatures.c_str()) :
       MaterializeSpecConstHandle(KernelName.c_str(), BinInfo, SpecConstBlob,
                                  TargetCPU.c_str(), TargetFeatures.c_str());
   if (MaterializerResult.failed()) {
@@ -688,20 +699,13 @@ RTDeviceBinaryImage&& jit_compiler::jitModule(
   }
 
   auto &MaterializerKernelInfo = MaterializerResult.getKernelInfo();
-  pi_device_binary_struct MaterializedRawDeviceImage{RawDeviceImage};
-  MaterializedRawDeviceImage.BinaryStart =
-      MaterializerKernelInfo.BinaryInfo.BinaryStart;
-  MaterializedRawDeviceImage.BinaryEnd =
-      MaterializerKernelInfo.BinaryInfo.BinaryStart +
-      MaterializerKernelInfo.BinaryInfo.BinarySize;
+  auto PIDeviceBinaries = createPIDeviceBinary(MaterializerKernelInfo.BinaryInfo, RawDeviceImage, TargetFormat, TargetCPU);
   // If asked, register the image to the program manager, this will allow the RT to pick up the binary for the other kernels.
   if (RegisterImage) {
-    auto PIDeviceBinaries = createPIDeviceBinary(MaterializerKernelInfo, TargetFormat, TargetCPU);
     detail::ProgramManager::getInstance().addImages(PIDeviceBinaries);
   }
 
-// TODO: dangling pointer here
-  return RTDeviceBinaryImage{&MaterializedRawDeviceImage};
+  return PIDeviceBinaries->DeviceBinaries;
 }
 
 sycl::detail::pi::PiKernel jit_compiler::materializeSpecConstants(
@@ -1140,6 +1144,65 @@ pi_device_binaries jit_compiler::createPIDeviceBinary(
   Collection.addDeviceBinary(
       std::move(Binary), FusedKernelInfo.BinaryInfo.BinaryStart,
       FusedKernelInfo.BinaryInfo.BinarySize, TargetSpec, BinFormat);
+
+  JITDeviceBinaries.push_back(std::move(Collection));
+  return JITDeviceBinaries.back().getPIDeviceStruct();
+}
+
+pi_device_binaries jit_compiler::createPIDeviceBinary(
+    const ::jit_compiler::SYCLKernelBinaryInfo &BinaryInfo,
+    const pi_device_binary_struct &RawDeviceImage,
+    ::jit_compiler::BinaryFormat Format,
+    const std::string &Arch) {
+  DeviceBinaryContainer Binary;
+
+  for (_pi_offload_entry Entry = RawDeviceImage.EntriesBegin; Entry < RawDeviceImage.EntriesEnd; Entry++) {
+    Binary.addOffloadEntry(*Entry);
+  }
+
+  for (pi_device_binary_property_set Entry = RawDeviceImage.PropertySetsBegin; Entry < RawDeviceImage.PropertySetsEnd; Entry++) {
+    Binary.addProperty(*Entry);
+  }
+
+  if (Format == ::jit_compiler::BinaryFormat::AMDGCN) {
+    PropertyContainer NeedFinalization{
+        __SYCL_PI_PROGRAM_METADATA_TAG_NEED_FINALIZATION, 1};
+    PropertySetContainer ProgramMetadata{
+        __SYCL_PI_PROPERTY_SET_PROGRAM_METADATA};
+    ProgramMetadata.addProperty(std::move(NeedFinalization));
+    Binary.addProperty(std::move(ProgramMetadata));
+  }
+
+  const char *TargetSpec = nullptr;
+  pi_device_binary_type BinFormat = PI_DEVICE_BINARY_TYPE_NATIVE;
+  switch (Format) {
+  case ::jit_compiler::BinaryFormat::PTX: {
+    TargetSpec = __SYCL_PI_DEVICE_BINARY_TARGET_NVPTX64;
+    BinFormat = PI_DEVICE_BINARY_TYPE_NONE;
+    break;
+  }
+  case ::jit_compiler::BinaryFormat::AMDGCN: {
+    // TODO: use Arch
+    TargetSpec = __SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN;
+    BinFormat = PI_DEVICE_BINARY_TYPE_NONE;
+    break;
+  }
+  case ::jit_compiler::BinaryFormat::SPIRV: {
+    TargetSpec = (BinaryInfo.AddressBits == 64)
+                     ? __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV64
+                     : __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV32;
+    BinFormat = PI_DEVICE_BINARY_TYPE_SPIRV;
+    break;
+  }
+  default:
+    sycl::exception(sycl::make_error_code(sycl::errc::invalid),
+                    "Invalid output format");
+  }
+  std::cerr << " >>>>>>>> JITTED " << TargetSpec << "\n";
+  DeviceBinariesCollection Collection;
+  Collection.addDeviceBinary(
+      std::move(Binary), BinaryInfo.BinaryStart,
+      BinaryInfo.BinarySize, TargetSpec, BinFormat);
 
   JITDeviceBinaries.push_back(std::move(Collection));
   return JITDeviceBinaries.back().getPIDeviceStruct();

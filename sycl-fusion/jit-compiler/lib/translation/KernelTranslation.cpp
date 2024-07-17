@@ -44,6 +44,8 @@ static Indices getAttributeValues(MDNode *MD) {
 ///   - reqd_work_group_size
 ///   - work_group_size_hint
 static void restoreKernelAttributes(Module *Mod, SYCLKernelInfo &Info) {
+  if (Info.Name.c_str()[0] == 0)
+    return;
   auto *KernelFunction = Mod->getFunction(Info.Name.c_str());
   assert(KernelFunction && "Kernel function not present in module");
   SmallVector<SYCLKernelAttribute, 2> Attrs;

@@ -77,6 +77,14 @@ void DeviceBinaryContainer::addOffloadEntry(OffloadEntryContainer &&Cont) {
   PIOffloadEntries.push_back(Cont.getPIOffloadEntry());
   OffloadEntries.push_back(std::move(Cont));
 }
+void DeviceBinaryContainer::addOffloadEntry(const _pi_offload_entry_struct &Entry) {
+  // Adding to the vectors might trigger reallocation, which would invalidate
+  // the pointers used for PI structs if a PI struct has already been created
+  // via getPIDeviceBinary(). Forbid calls to this method after the first PI
+  // struct has been created.
+  assert(Fused && "Adding to container would invalidate existing PI structs");
+  PIOffloadEntries.push_back(Entry);
+}
 
 void DeviceBinaryContainer::addProperty(PropertySetContainer &&Cont) {
   // Adding to the vectors might trigger reallocation, which would invalidate
@@ -86,6 +94,14 @@ void DeviceBinaryContainer::addProperty(PropertySetContainer &&Cont) {
   assert(Fused && "Adding to container would invalidate existing PI structs");
   PIPropertySets.push_back(Cont.getPIPropertySet());
   PropertySets.push_back(std::move(Cont));
+}
+void DeviceBinaryContainer::addProperty(const _pi_device_binary_property_set_struct &PropSet) {
+  // Adding to the vectors might trigger reallocation, which would invalidate
+  // the pointers used for PI structs if a PI struct has already been created
+  // via getPIDeviceBinary(). Forbid calls to this method after the first PI
+  // struct has been created.
+  assert(Fused && "Adding to container would invalidate existing PI structs");
+  PIPropertySets.push_back(PropSet);
 }
 
 pi_device_binary_struct DeviceBinaryContainer::getPIDeviceBinary(

@@ -25,6 +25,7 @@
 #include "llvm/IR/Verifier.h"
 #endif // NDEBUG
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
@@ -145,11 +146,19 @@ FusionPipeline::runFusionPasses(Module &Mod, SYCLModuleInfo &InputInfo,
 
 bool FusionPipeline::runMaterializerPasses(
     llvm::Module &Mod, llvm::ArrayRef<unsigned char> SpecConstData) {
-  PassBuilder PB;
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
   CGSCCAnalysisManager CGAM;
   ModuleAnalysisManager MAM;
+  PassInstrumentationCallbacks PIC;
+
+  StandardInstrumentations SI(Mod.getContext(), /*Debug=*/true);
+  SI.registerCallbacks(PIC, &MAM);
+  PipelineTuningOptions PTO;
+  PTO.LoopVectorization = true;
+  PTO.SLPVectorization = true;
+  PassBuilder PB(&TM, PTO, std::nullopt, &PIC);
+
   PB.registerModuleAnalyses(MAM);
   PB.registerCGSCCAnalyses(CGAM);
   PB.registerFunctionAnalyses(FAM);

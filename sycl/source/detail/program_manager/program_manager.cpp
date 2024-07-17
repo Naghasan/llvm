@@ -105,15 +105,19 @@ static sycl::detail::pi::PiProgram
 createBinaryOrJITProgram(const ContextImplPtr Context, const device &Device,
                     const pi_device_binary_struct &RawDeviceImage,
                     const std::vector<pi_device_binary_property>& Metadata) {
-  RTDeviceBinaryImage JITTEDImage;
+  const pi_device_binary_struct * Image = &RawDeviceImage;
+  std::cerr << " >>>>>>>> createBinaryOrJITProgram " << RawDeviceImage.DeviceTargetSpec << " for " << Device.get_backend() << " / " << std::strcmp(RawDeviceImage.DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) << "\n";
   if (Device.get_backend() == backend::ext_oneapi_hip &&
-   std::strcmp(RawDeviceImage.DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN)) {
+   std::strcmp(RawDeviceImage.DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) == 0) {
     // We have an LLVM IR binary, JIT it before sending this to HIP.
+  std::cerr << " >>>>>>>> JITTING !!\n";
     RTDeviceBinaryImage JITTEDImage = detail::jit_compiler::get_instance().jitModule(getSyclObjImpl(Device),
      RawDeviceImage, (pi::PiDeviceBinaryType) PI_DEVICE_BINARY_TYPE_LLVMIR_BITCODE,
     /*RegisterImage=*/true);
+    Image = &JITTEDImage.getRawData();
   }
-  return createBinaryProgram(Context, Device, RawDeviceImage.BinaryStart, RawDeviceImage.BinaryEnd - RawDeviceImage.BinaryStart, Metadata);
+  std::cerr << " >>>>>>>> createBinaryOrJITProgram " << Image->DeviceTargetSpec << "\n";
+  return createBinaryProgram(Context, Device, Image->BinaryStart, Image->BinaryEnd - Image->BinaryStart, Metadata);
 }
                   
 static sycl::detail::pi::PiProgram

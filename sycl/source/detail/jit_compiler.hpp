@@ -41,7 +41,7 @@ public:
   fuseKernels(QueueImplPtr Queue, std::vector<ExecCGCommand *> &InputKernels,
               const property_list &);
 
-  RTDeviceBinaryImage&& jitModule(
+  pi_device_binary jitModule(
     DeviceImplPtr Device, const pi_device_binary_struct &RawDeviceImage,
     pi::PiDeviceBinaryType ImageType,
     bool RegisterImage,
@@ -72,6 +72,11 @@ private:
   pi_device_binaries
   createPIDeviceBinary(const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
                        ::jit_compiler::BinaryFormat Format,const std::string &Arch = {});
+  /// Create a pi_device_binary using the source RawDeviceImage.
+  pi_device_binaries
+  createPIDeviceBinary(const ::jit_compiler::SYCLKernelBinaryInfo &BinaryInfo,
+                       const pi_device_binary_struct &RawDeviceImage,
+                       ::jit_compiler::BinaryFormat Format,const std::string &Arch = {});
 
   std::vector<uint8_t>
   encodeArgUsageMask(const ::jit_compiler::ArgUsageMask &Mask) const;
@@ -90,10 +95,13 @@ private:
   using FuseKernelsFuncT = decltype(::jit_compiler::fuseKernels) *;
   using MaterializeSpecConstFuncT =
       decltype(::jit_compiler::materializeSpecConstants) *;
+  using JitModuleFuncT =
+      decltype(::jit_compiler::jitModule) *;
   using ResetConfigFuncT = decltype(::jit_compiler::resetJITConfiguration) *;
   using AddToConfigFuncT = decltype(::jit_compiler::addToJITConfiguration) *;
   FuseKernelsFuncT FuseKernelsHandle = nullptr;
   MaterializeSpecConstFuncT MaterializeSpecConstHandle = nullptr;
+  JitModuleFuncT JitModuleHandle = nullptr;
   ResetConfigFuncT ResetConfigHandle = nullptr;
   AddToConfigFuncT AddToConfigHandle = nullptr;
 #endif // SYCL_EXT_CODEPLAY_KERNEL_FUSION

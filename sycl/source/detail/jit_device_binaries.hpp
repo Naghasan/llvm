@@ -108,8 +108,12 @@ public:
   DeviceBinaryContainer &operator=(const DeviceBinaryContainer &) = delete;
 
   void addOffloadEntry(OffloadEntryContainer &&Cont);
+  // Make a shallow copy of an existing offload entry.
+  void addOffloadEntry(const _pi_offload_entry_struct &Entry);
 
   void addProperty(PropertySetContainer &&Cont);
+  // Make a shallow copy of an existing offload property set.
+  void addProperty(const _pi_device_binary_property_set_struct &PropSet);
 
   pi_device_binary_struct getPIDeviceBinary(const unsigned char *BinaryStart,
                                             size_t BinarySize,

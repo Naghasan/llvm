@@ -18,7 +18,7 @@
 #include "translation/SPIRVLLVMTranslation.h"
 #include <llvm/Support/Error.h>
 #include <sstream>
-
+#include <iostream>
 using namespace jit_compiler;
 
 using FusedFunction = helper::FusionHelper::FusedFunction;
@@ -68,6 +68,51 @@ static bool isTargetFormatSupported(BinaryFormat TargetFormat) {
   default:
     return false;
   }
+}
+
+extern "C" JITResult
+jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
+          const char *TargetCPU, const char *TargetFeatures) {
+  auto &JITCtx = JITContext::getInstance();
+
+  TargetInfo TargetInfo = ConfigHelper::get<option::JITTargetInfo>();
+  BinaryFormat TargetFormat = TargetInfo.getFormat();
+  if (TargetFormat != BinaryFormat::PTX &&
+      TargetFormat != BinaryFormat::AMDGCN) {
+    return JITResult("Output target format not supported by this build. "
+                     "Available targets are: PTX or AMDGCN.");
+  }
+
+  ::jit_compiler::SYCLKernelInfo KernelInfo{
+      {}, ::jit_compiler::SYCLArgumentDescriptor{},
+      ::jit_compiler::NDRange{}, BinInfo};
+  SYCLModuleInfo ModuleInfo;
+  ModuleInfo.kernels().insert(ModuleInfo.kernels().end(), KernelInfo);
+  // Load all input kernels from their respective modules into a single
+  // LLVM IR module.
+  llvm::Expected<std::unique_ptr<llvm::Module>> ModOrError =
+      translation::KernelTranslator::loadKernels(*JITCtx.getLLVMContext(),
+                                                 ModuleInfo.kernels());
+  if (auto Error = ModOrError.takeError()) {
+    return errorToFusionResult(std::move(Error), "Failed to load kernels");
+  }
+  std::unique_ptr<llvm::Module> NewMod = std::move(*ModOrError);
+  bool res = !fusion::FusionPipeline::runMaterializerPasses(
+          *NewMod, {});
+          std::cerr << " >>>>>>> runMaterializerPasses " << res << "\n";
+  if (res) {
+    return JITResult{"Materializer passes should not fail"};
+  }
+
+  SYCLKernelInfo &MaterializerKernelInfo = *ModuleInfo.getKernelFor("");
+  if (auto Error = translation::KernelTranslator::translateKernel(
+          MaterializerKernelInfo, *NewMod, JITCtx, TargetFormat, TargetCPU,
+          TargetFeatures)) {
+    return errorToFusionResult(std::move(Error),
+                               "Translation to output format failed");
+  }
+
+  return JITResult{MaterializerKernelInfo};
 }
 
 extern "C" JITResult
