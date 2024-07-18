@@ -8,6 +8,7 @@ add_llvm_library(sycl-fusion
    lib/fusion/JITContext.cpp
    lib/fusion/ModuleHelper.cpp
    lib/helper/ConfigHelper.cpp
+   lib/helper/JITMachine.cpp
 
    SHARED
 

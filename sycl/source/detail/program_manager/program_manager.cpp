@@ -115,6 +115,7 @@ createBinaryOrJITProgram(const ContextImplPtr Context, const device &Device,
      RawDeviceImage, (pi::PiDeviceBinaryType) PI_DEVICE_BINARY_TYPE_LLVMIR_BITCODE,
     /*RegisterImage=*/true);
     Image = &JITTEDImage.getRawData();
+    JITTEDImage.print();
   }
   std::cerr << " >>>>>>>> createBinaryOrJITProgram " << Image->DeviceTargetSpec << "\n";
   return createBinaryProgram(Context, Device, Image->BinaryStart, Image->BinaryEnd - Image->BinaryStart, Metadata);

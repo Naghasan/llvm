@@ -654,6 +654,7 @@ pi_device_binary jit_compiler::jitModule(
       BinaryImageFormat, 0, RawDeviceImage.BinaryStart, DeviceImageSize};
 
   ::jit_compiler::TargetInfo TargetInfo = getTargetInfo(Device);
+  std::cerr << "----- TargetInfo arch " << TargetInfo.getArch() << "\n";
   ::jit_compiler::BinaryFormat TargetFormat = TargetInfo.getFormat();
   AddToConfigHandle(
       ::jit_compiler::option::JITTargetInfo::set(std::move(TargetInfo)));
@@ -665,18 +666,7 @@ pi_device_binary jit_compiler::jitModule(
   auto GetTargetCPU = [&]() {
     std::string Target = detail::SYCLConfig<detail::SYCL_JIT_AMDGCN_PTX_TARGET_CPU>::get();
     if (Target == "" && Device->getBackend() == backend::ext_oneapi_hip) {
-      auto Plugin = Device->getPlugin();
-      std::string DeviceNameString;
-      size_t DeviceNameStrSize = 0;
-      Plugin->call<PiApiKind::piDeviceGetInfo>(Device->getHandleRef(), PI_DEVICE_INFO_NAME, 0,
-                                              nullptr, &DeviceNameStrSize);
-      if (DeviceNameStrSize > 0) {
-        std::vector<char> DeviceName(DeviceNameStrSize);
-        Plugin->call<PiApiKind::piDeviceGetInfo>(Device->getHandleRef(), PI_DEVICE_INFO_NAME,
-                                                DeviceNameStrSize,
-                                                DeviceName.data(), nullptr);
-        return std::string(DeviceName.data());
-      }
+        return Device->get_info<info::device::version>();
     }
     return Target;
   };
@@ -684,6 +674,8 @@ pi_device_binary jit_compiler::jitModule(
   std::string TargetCPU = GetTargetCPU();
   std::string TargetFeatures =
       detail::SYCLConfig<detail::SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES>::get();
+
+  std::cerr << " >>>>>>>> calling  JitModuleHandle " << JitModuleHandle << " for kernel " << KernelName << "\n";
 
   auto MaterializerResult = KernelName.empty() ?
   JitModuleHandle(BinInfo, TargetCPU.c_str(), TargetFeatures.c_str()) :

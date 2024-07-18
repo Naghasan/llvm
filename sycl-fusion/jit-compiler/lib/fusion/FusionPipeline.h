@@ -14,6 +14,7 @@
 #include "llvm/IR/Module.h"
 
 namespace jit_compiler {
+  class JITMachine;
 namespace fusion {
 
 class FusionPipeline {
@@ -32,7 +33,7 @@ public:
   /// Run the necessary passes in a custom pass pipeline to perform
   /// materialization of kernel specialization constants.
   static bool
-  runMaterializerPasses(llvm::Module &Mod,
+  runMaterializerPasses(llvm::Module &Mod, JITMachine &JM,
                         llvm::ArrayRef<unsigned char> SpecConstData);
 };
 } // namespace fusion

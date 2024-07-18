@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "KernelTranslation.h"
+#include "JITMachine.h"
 
 #include "SPIRVLLVMTranslation.h"
 #include "llvm/Bitcode/BitcodeReader.h"
@@ -18,6 +19,8 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+
+#include <iostream>
 
 using namespace jit_compiler;
 using namespace jit_compiler::translation;
@@ -71,6 +74,7 @@ KernelTranslator::loadKernels(llvm::LLVMContext &LLVMCtx,
   bool First = true;
   DenseSet<BinaryBlob> ParsedBinaries;
   size_t AddressBits = 0;
+std::cerr << " >>>>>>> Module parsing started\n";
   for (auto &Kernel : Kernels) {
     // FIXME: Currently, we use the front of the list.
     // Do we need to iterate to find the most suitable
@@ -113,7 +117,7 @@ KernelTranslator::loadKernels(llvm::LLVMContext &LLVMCtx,
             "Failed to load kernel from unsupported input format");
       }
       }
-
+std::cerr << " >>>>>>> Module parsed\n";
       // We do not assume that the input binary information has the address bits
       // set, but rather retrieve this information from the SPIR-V/LLVM module's
       // data-layout.
@@ -172,9 +176,7 @@ KernelTranslator::loadSPIRVKernel(llvm::LLVMContext &LLVMCtx,
 
 llvm::Error
 KernelTranslator::translateKernel(SYCLKernelInfo &Kernel, llvm::Module &Mod,
-                                  JITContext &JITCtx, BinaryFormat Format,
-                                  const std::string &TargetCPU,
-                                  const std::string &TargetFeatures) {
+                                  JITContext &JITCtx, JITMachine &JM, BinaryFormat Format) {
 
   KernelBinary *KernelBin = nullptr;
   switch (Format) {
@@ -189,7 +191,7 @@ KernelTranslator::translateKernel(SYCLKernelInfo &Kernel, llvm::Module &Mod,
   }
   case BinaryFormat::PTX: {
     llvm::Expected<KernelBinary *> BinaryOrError =
-        translateToPTX(Kernel, Mod, JITCtx, TargetCPU, TargetFeatures);
+        translateToPTX(Kernel, Mod, JITCtx, JM);
     if (auto Error = BinaryOrError.takeError()) {
       return Error;
     }
@@ -198,7 +200,7 @@ KernelTranslator::translateKernel(SYCLKernelInfo &Kernel, llvm::Module &Mod,
   }
   case BinaryFormat::AMDGCN: {
     llvm::Expected<KernelBinary *> BinaryOrError =
-        translateToAMDGCN(Kernel, Mod, JITCtx, TargetCPU, TargetFeatures);
+        translateToAMDGCN(Kernel, Mod, JITCtx, JM);
     if (auto Error = BinaryOrError.takeError())
       return Error;
     KernelBin = *BinaryOrError;
@@ -231,7 +233,7 @@ KernelTranslator::translateToSPIRV(llvm::Module &Mod, JITContext &JITCtx) {
 
 llvm::Expected<KernelBinary *> KernelTranslator::translateToPTX(
     SYCLKernelInfo &KernelInfo, llvm::Module &Mod, JITContext &JITCtx,
-    const std::string &TargetCPU, const std::string &TargetFeatures) {
+    JITMachine &JM) {
 #ifndef FUSION_JIT_SUPPORT_PTX
   (void)KernelInfo;
   (void)Mod;
@@ -239,54 +241,6 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToPTX(
   return createStringError(inconvertibleErrorCode(),
                            "PTX translation not supported in this build");
 #else  // FUSION_JIT_SUPPORT_PTX
-  LLVMInitializeNVPTXTargetInfo();
-  LLVMInitializeNVPTXTarget();
-  LLVMInitializeNVPTXAsmPrinter();
-  LLVMInitializeNVPTXTargetMC();
-
-  static const char *TARGET_CPU_ATTRIBUTE = "target-cpu";
-  static const char *TARGET_FEATURE_ATTRIBUTE = "target-features";
-
-  std::string TargetTriple{"nvptx64-nvidia-cuda"};
-
-  std::string ErrorMessage;
-  const auto *Target =
-      llvm::TargetRegistry::lookupTarget(TargetTriple, ErrorMessage);
-
-  if (!Target) {
-    return createStringError(
-        inconvertibleErrorCode(),
-        "Failed to load and translate PTX LLVM IR module with error %s",
-        ErrorMessage.c_str());
-  }
-
-  // Give priority to user specified values (through environment variables:
-  // SYCL_JIT_AMDGCN_PTX_TARGET_CPU and SYCL_JIT_AMDGCN_PTX_TARGET_FEATURES).
-  llvm::StringRef CPU{TargetCPU};
-  llvm::StringRef Features{TargetFeatures};
-
-  auto *KernelFunc = Mod.getFunction(KernelInfo.Name.c_str());
-  // If they were not set, use default and consult the module for alternatives
-  // (if present).
-  if (CPU.empty()) {
-    CPU = "sm_50";
-    if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_CPU_ATTRIBUTE)) {
-      CPU = KernelFunc->getFnAttribute(TARGET_CPU_ATTRIBUTE).getValueAsString();
-    }
-  }
-  if (Features.empty()) {
-    Features = "+sm_50,+ptx76";
-    if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_FEATURE_ATTRIBUTE)) {
-      Features = KernelFunc->getFnAttribute(TARGET_FEATURE_ATTRIBUTE)
-                     .getValueAsString();
-    }
-  }
-
-  // FIXME: Check whether we can provide more accurate target information here
-  auto *TargetMachine = Target->createTargetMachine(
-      TargetTriple, CPU, Features, {}, llvm::Reloc::PIC_, std::nullopt,
-      llvm::CodeGenOptLevel::Default);
-
   llvm::legacy::PassManager PM;
 
   std::string PTXASM;
@@ -295,7 +249,7 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToPTX(
     llvm::raw_string_ostream ASMStream{PTXASM};
     llvm::buffer_ostream BufferedASM{ASMStream};
 
-    if (TargetMachine->addPassesToEmitFile(
+    if (JM.getTargetMachine().addPassesToEmitFile(
             PM, BufferedASM, nullptr, llvm::CodeGenFileType::AssemblyFile)) {
       return createStringError(
           inconvertibleErrorCode(),
@@ -312,7 +266,7 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToPTX(
 
 llvm::Expected<KernelBinary *> KernelTranslator::translateToAMDGCN(
     SYCLKernelInfo &KernelInfo, llvm::Module &Mod, JITContext &JITCtx,
-    const std::string &TargetCPU, const std::string &TargetFeatures) {
+    JITMachine &JM) {
 #ifndef FUSION_JIT_SUPPORT_AMDGCN
   (void)KernelInfo;
   (void)Mod;
@@ -321,57 +275,13 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToAMDGCN(
                            "AMDGPU translation not supported in this build");
 #else  // FUSION_JIT_SUPPORT_AMDGCN
 
-  LLVMInitializeAMDGPUTargetInfo();
-  LLVMInitializeAMDGPUTarget();
-  LLVMInitializeAMDGPUAsmPrinter();
-  LLVMInitializeAMDGPUTargetMC();
-
-  static const char *TARGET_CPU_ATTRIBUTE = "target-cpu";
-  static const char *TARGET_FEATURE_ATTRIBUTE = "target-features";
-
-  std::string TargetTriple{"amdgcn-amd-amdhsa"};
-
-  std::string ErrorMessage;
-  const auto *Target =
-      llvm::TargetRegistry::lookupTarget(TargetTriple, ErrorMessage);
-
-  if (!Target)
-    return createStringError(
-        inconvertibleErrorCode(),
-        "Failed to load and translate AMDGCN LLVM IR module with error %s",
-        ErrorMessage.c_str());
-
-  llvm::StringRef CPU{TargetCPU};
-  llvm::StringRef Features{TargetFeatures};
-
-  auto *KernelFunc = Mod.getFunction(KernelInfo.Name.c_str());
-  if (CPU.empty()) {
-    // Set to the lowest tested target according to the GetStartedGuide, section
-    // "Build DPC++ toolchain with support for HIP AMD"
-    CPU = "gfx906";
-    if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_CPU_ATTRIBUTE)) {
-      CPU = KernelFunc->getFnAttribute(TARGET_CPU_ATTRIBUTE).getValueAsString();
-    }
-  }
-  if (Features.empty()) {
-    if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_FEATURE_ATTRIBUTE)) {
-      Features = KernelFunc->getFnAttribute(TARGET_FEATURE_ATTRIBUTE)
-                     .getValueAsString();
-    }
-  }
-
-  // FIXME: Check whether we can provide more accurate target information here
-  auto *TargetMachine = Target->createTargetMachine(
-      TargetTriple, CPU, Features, {}, llvm::Reloc::PIC_, std::nullopt,
-      llvm::CodeGenOptLevel::Default);
-
   std::string AMDObj;
   {
     llvm::legacy::PassManager PM;
     llvm::raw_string_ostream OBJStream{AMDObj};
     llvm::buffer_ostream BufferedOBJ{OBJStream};
 
-    if (TargetMachine->addPassesToEmitFile(PM, BufferedOBJ, nullptr,
+    if (JM.getTargetMachine().addPassesToEmitFile(PM, BufferedOBJ, nullptr,
                                            llvm::CodeGenFileType::ObjectFile)) {
       return createStringError(
           inconvertibleErrorCode(),
@@ -381,7 +291,6 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToAMDGCN(
     PM.run(Mod);
     OBJStream.flush();
   }
-
   return &JITCtx.emplaceKernelBinary(std::move(AMDObj), BinaryFormat::AMDGCN);
 #endif // FUSION_JIT_SUPPORT_AMDGCN
 }

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "FusionPipeline.h"
+#include "JITMachine.h"
 
 #include "debug/PassDebug.h"
 #include "helper/ConfigHelper.h"
@@ -145,19 +146,22 @@ FusionPipeline::runFusionPasses(Module &Mod, SYCLModuleInfo &InputInfo,
 }
 
 bool FusionPipeline::runMaterializerPasses(
-    llvm::Module &Mod, llvm::ArrayRef<unsigned char> SpecConstData) {
+    llvm::Module &Mod, JITMachine &JM, llvm::ArrayRef<unsigned char> SpecConstData) {
+        llvm::dbgs() << "test dbgs\n";
+  llvm::errs() << "test errs\n";
+
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
   CGSCCAnalysisManager CGAM;
   ModuleAnalysisManager MAM;
   PassInstrumentationCallbacks PIC;
 
-  StandardInstrumentations SI(Mod.getContext(), /*Debug=*/true);
-  SI.registerCallbacks(PIC, &MAM);
+  //StandardInstrumentations SI(Mod.getContext(), /*Debug=*/true, false, {true, false, true});
+  //SI.registerCallbacks(PIC, &MAM);
   PipelineTuningOptions PTO;
   PTO.LoopVectorization = true;
   PTO.SLPVectorization = true;
-  PassBuilder PB(&TM, PTO, std::nullopt, &PIC);
+  PassBuilder PB(&JM.getTargetMachine(), PTO, std::nullopt, &PIC);
 
   PB.registerModuleAnalyses(MAM);
   PB.registerCGSCCAnalyses(CGAM);
@@ -192,6 +196,8 @@ bool FusionPipeline::runMaterializerPasses(
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
   }
 
+  llvm::dbgs() << "test dbgs\n";
+  llvm::errs() << "test errs\n";
   MPM.run(Mod, MAM);
 
   return true;

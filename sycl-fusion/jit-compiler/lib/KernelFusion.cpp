@@ -8,6 +8,7 @@
 
 #include "KernelFusion.h"
 #include "Kernel.h"
+#include "JITMachine.h"
 #include "NDRangesHelper.h"
 #include "Options.h"
 #include "fusion/FusionHelper.h"
@@ -73,6 +74,7 @@ static bool isTargetFormatSupported(BinaryFormat TargetFormat) {
 extern "C" JITResult
 jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
           const char *TargetCPU, const char *TargetFeatures) {
+          std::cerr << " >>>>>>> In jitModule " << "\n";
   auto &JITCtx = JITContext::getInstance();
 
   TargetInfo TargetInfo = ConfigHelper::get<option::JITTargetInfo>();
@@ -82,12 +84,14 @@ jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
     return JITResult("Output target format not supported by this build. "
                      "Available targets are: PTX or AMDGCN.");
   }
+std::cerr << " >>>>>>> Create kernel info\n";
 
   ::jit_compiler::SYCLKernelInfo KernelInfo{
-      {}, ::jit_compiler::SYCLArgumentDescriptor{},
+      "", ::jit_compiler::SYCLArgumentDescriptor{},
       ::jit_compiler::NDRange{}, BinInfo};
   SYCLModuleInfo ModuleInfo;
   ModuleInfo.kernels().insert(ModuleInfo.kernels().end(), KernelInfo);
+std::cerr << " >>>>>>> Create kernel info\n";
   // Load all input kernels from their respective modules into a single
   // LLVM IR module.
   llvm::Expected<std::unique_ptr<llvm::Module>> ModOrError =
@@ -96,9 +100,19 @@ jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
   if (auto Error = ModOrError.takeError()) {
     return errorToFusionResult(std::move(Error), "Failed to load kernels");
   }
+          std::cerr << " >>>>>>> Kernel loaded " << "\n";
   std::unique_ptr<llvm::Module> NewMod = std::move(*ModOrError);
+  JITMachine JM{*NewMod, TargetFormat, TargetCPU,
+          TargetFeatures};
+  // Create and cache the Target and TargetMachine before entering the pipeline
+  // Not ideal, but we can cleanly propagate errors here.
+  auto TargetOrError = JM.getOrCreateTargetMachine();
+  if (auto Error = TargetOrError.takeError()) {
+    return errorToFusionResult(std::move(Error), "Failed to create target machine (internal error)");
+  }
+          std::cerr << " >>>>>>> runMaterializerPasses " << "\n";
   bool res = !fusion::FusionPipeline::runMaterializerPasses(
-          *NewMod, {});
+          *NewMod, JM, {});
           std::cerr << " >>>>>>> runMaterializerPasses " << res << "\n";
   if (res) {
     return JITResult{"Materializer passes should not fail"};
@@ -106,8 +120,7 @@ jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
 
   SYCLKernelInfo &MaterializerKernelInfo = *ModuleInfo.getKernelFor("");
   if (auto Error = translation::KernelTranslator::translateKernel(
-          MaterializerKernelInfo, *NewMod, JITCtx, TargetFormat, TargetCPU,
-          TargetFeatures)) {
+          MaterializerKernelInfo, *NewMod, JITCtx, JM, TargetFormat)) {
     return errorToFusionResult(std::move(Error),
                                "Translation to output format failed");
   }
@@ -144,16 +157,23 @@ materializeSpecConstants(const char *KernelName,
     return errorToFusionResult(std::move(Error), "Failed to load kernels");
   }
   std::unique_ptr<llvm::Module> NewMod = std::move(*ModOrError);
+  JITMachine JM{*NewMod, TargetFormat, TargetCPU,
+          TargetFeatures};
+  // Create and cache the Target and TargetMachine before entering the pipeline
+  // Not ideal, but we can cleanly propagate errors here.
+  auto TargetOrError = JM.getOrCreateTargetMachine();
+  if (auto Error = TargetOrError.takeError()) {
+    return errorToFusionResult(std::move(Error), "Failed to create target machine (internal error)");
+  }
   if (!fusion::FusionPipeline::runMaterializerPasses(
-          *NewMod, SpecConstBlob.to<llvm::ArrayRef>()) ||
+          *NewMod, JM, SpecConstBlob.to<llvm::ArrayRef>()) ||
       !NewMod->getFunction(KernelName)) {
     return JITResult{"Materializer passes should not fail"};
   }
 
   SYCLKernelInfo &MaterializerKernelInfo = *ModuleInfo.getKernelFor(KernelName);
   if (auto Error = translation::KernelTranslator::translateKernel(
-          MaterializerKernelInfo, *NewMod, JITCtx, TargetFormat, TargetCPU,
-          TargetFeatures)) {
+          MaterializerKernelInfo, *NewMod, JITCtx, JM, TargetFormat)) {
     return errorToFusionResult(std::move(Error),
                                "Translation to output format failed");
   }
@@ -267,8 +287,17 @@ extern "C" JITResult fuseKernels(View<SYCLKernelInfo> KernelInformation,
 
   SYCLKernelInfo &FusedKernelInfo = *NewModInfo->getKernelFor(FusedKernelName);
 
+  // TODO: We should provide these information to the fusion passes pipeline
+  JITMachine JM{*NewMod, TargetFormat, {}, {}, FusedKernelName};
+  // Create and cache the Target and TargetMachine before entering the pipeline
+  // Not ideal, but we can cleanly propagate errors here.
+  auto TargetOrError = JM.getOrCreateTargetMachine();
+  if (auto Error = TargetOrError.takeError()) {
+    return errorToFusionResult(std::move(Error), "Failed to create target machine (internal error)");
+  }
+
   if (auto Error = translation::KernelTranslator::translateKernel(
-          FusedKernelInfo, *NewMod, JITCtx, TargetFormat)) {
+          FusedKernelInfo, *NewMod, JITCtx, JM, TargetFormat)) {
     return errorToFusionResult(std::move(Error),
                                "Translation to output format failed");
   }
