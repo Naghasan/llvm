@@ -616,7 +616,9 @@ AMDGPUTargetMachine::~AMDGPUTargetMachine() = default;
 
 StringRef AMDGPUTargetMachine::getGPUName(const Function &F) const {
   Attribute GPUAttr = F.getFnAttribute("target-cpu");
-  return GPUAttr.isValid() ? GPUAttr.getValueAsString() : getTargetCPU();
+  StringRef name = GPUAttr.isValid() ? GPUAttr.getValueAsString() : getTargetCPU();
+  llvm::errs() <<  "+++++++++++ getGPUName " << name << "\n";
+  return name;
 }
 
 StringRef AMDGPUTargetMachine::getFeatureString(const Function &F) const {

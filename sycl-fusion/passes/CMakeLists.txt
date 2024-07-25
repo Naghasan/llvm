@@ -52,6 +52,7 @@ add_llvm_library(SYCLKernelFusionPasses
   kernel-fusion/Builtins.cpp
   kernel-fusion/SYCLKernelFusion.cpp
   kernel-fusion/SYCLSpecConstMaterializer.cpp
+  kernel-fusion/TargetPostfix.cpp
   kernel-info/SYCLKernelInfo.cpp
   internalization/Internalization.cpp
   syclcp/SYCLCP.cpp

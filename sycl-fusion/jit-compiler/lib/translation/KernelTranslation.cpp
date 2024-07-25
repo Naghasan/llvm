@@ -20,6 +20,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include "llvm/Support/raw_ostream.h"
+
 #include <iostream>
 
 using namespace jit_compiler;
@@ -291,6 +293,37 @@ llvm::Expected<KernelBinary *> KernelTranslator::translateToAMDGCN(
     PM.run(Mod);
     OBJStream.flush();
   }
+  if (auto Err = llvm::writeToOutput(
+          "AMDObj.o", [&AMDObj](llvm::raw_ostream &OS) -> llvm::Error {
+            OS << AMDObj;
+            return llvm::Error::success();
+          })) {
+  }
+  {
+    std::string AMDASM;
+    {
+      llvm::legacy::PassManager PM;
+      llvm::raw_string_ostream OBJStream{AMDASM};
+      llvm::buffer_ostream BufferedOBJ{OBJStream};
+
+      if (JM.getTargetMachine().addPassesToEmitFile(
+              PM, BufferedOBJ, nullptr, llvm::CodeGenFileType::AssemblyFile)) {
+        return createStringError(
+            inconvertibleErrorCode(),
+            "Failed to construct pass pipeline to emit output");
+      }
+
+      PM.run(Mod);
+      OBJStream.flush();
+    }
+    if (auto Err = llvm::writeToOutput(
+            "AMDAsm.s", [&AMDASM](llvm::raw_ostream &OS) -> llvm::Error {
+              OS << AMDASM;
+              return llvm::Error::success();
+            })) {
+    }
+  }
+
   return &JITCtx.emplaceKernelBinary(std::move(AMDObj), BinaryFormat::AMDGCN);
 #endif // FUSION_JIT_SUPPORT_AMDGCN
 }

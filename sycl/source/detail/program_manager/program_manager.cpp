@@ -103,22 +103,31 @@ createBinaryProgram(const ContextImplPtr Context, const device &Device,
 }
 static sycl::detail::pi::PiProgram
 createBinaryOrJITProgram(const ContextImplPtr Context, const device &Device,
-                    const pi_device_binary_struct &RawDeviceImage,
-                    const std::vector<pi_device_binary_property>& Metadata) {
-  const pi_device_binary_struct * Image = &RawDeviceImage;
-  std::cerr << " >>>>>>>> createBinaryOrJITProgram " << RawDeviceImage.DeviceTargetSpec << " for " << Device.get_backend() << " / " << std::strcmp(RawDeviceImage.DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) << "\n";
+                    const RTDeviceBinaryImage &DeviceImage) {
+  const pi_device_binary_struct * Image = nullptr;
+  std::vector<pi_device_binary_property> ProgMetadataVector;
+
+  std::cerr << " >>>>>>>> createBinaryOrJITProgram " << DeviceImage.getRawData().DeviceTargetSpec << " for " << Device.get_backend() << " / " << std::strcmp(DeviceImage.getRawData().DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) << "\n";
   if (Device.get_backend() == backend::ext_oneapi_hip &&
-   std::strcmp(RawDeviceImage.DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) == 0) {
+   std::strcmp(DeviceImage.getRawData().DeviceTargetSpec, __SYCL_PI_DEVICE_BINARY_TARGET_LLVM_AMDGCN) == 0) {
     // We have an LLVM IR binary, JIT it before sending this to HIP.
   std::cerr << " >>>>>>>> JITTING !!\n";
     RTDeviceBinaryImage JITTEDImage = detail::jit_compiler::get_instance().jitModule(getSyclObjImpl(Device),
-     RawDeviceImage, (pi::PiDeviceBinaryType) PI_DEVICE_BINARY_TYPE_LLVMIR_BITCODE,
+     DeviceImage.getRawData(), (pi::PiDeviceBinaryType) PI_DEVICE_BINARY_TYPE_LLVMIR_BITCODE,
     /*RegisterImage=*/true);
     Image = &JITTEDImage.getRawData();
+    auto ProgMetadata = JITTEDImage.getProgramMetadata();
+    ProgMetadataVector.insert(ProgMetadataVector.end(), ProgMetadata.begin(), ProgMetadata.end());
     JITTEDImage.print();
   }
+  else {
+    Image = &DeviceImage.getRawData();
+    auto ProgMetadata = DeviceImage.getProgramMetadata();
+    ProgMetadataVector.insert(ProgMetadataVector.end(), ProgMetadata.begin(), ProgMetadata.end());
+  }
+
   std::cerr << " >>>>>>>> createBinaryOrJITProgram " << Image->DeviceTargetSpec << "\n";
-  return createBinaryProgram(Context, Device, Image->BinaryStart, Image->BinaryEnd - Image->BinaryStart, Metadata);
+  return createBinaryProgram(Context, Device, Image->BinaryStart, Image->BinaryEnd - Image->BinaryStart, ProgMetadataVector);
 }
                   
 static sycl::detail::pi::PiProgram
@@ -229,17 +238,12 @@ ProgramManager::createPIProgram(const RTDeviceBinaryImage &Img,
         sycl::errc::feature_not_supported,
         "SPIR-V online compilation is not supported in this context");
 
-  // Get program metadata from properties
-  auto ProgMetadata = Img.getProgramMetadata();
-  std::vector<pi_device_binary_property> ProgMetadataVector{
-      ProgMetadata.begin(), ProgMetadata.end()};
-
   // Load the image
   const ContextImplPtr Ctx = getSyclObjImpl(Context);
   sycl::detail::pi::PiProgram Res =
       Format == PI_DEVICE_BINARY_TYPE_SPIRV
           ? createSpirvProgram(Ctx, RawImg.BinaryStart, ImgSize)
-          : createBinaryOrJITProgram(Ctx, Device, RawImg, ProgMetadataVector);
+          : createBinaryOrJITProgram(Ctx, Device, Img);
 
   {
     std::lock_guard<std::mutex> Lock(MNativeProgramsMutex);

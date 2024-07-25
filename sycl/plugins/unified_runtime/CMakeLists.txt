@@ -106,7 +106,7 @@ if(SYCL_PI_UR_USE_FETCH_CONTENT)
   # Date:   Thu Jul 11 15:12:38 2024 +0100
   #     Merge pull request #1747 from AllanZyne/review/yang/misalign_access
   #     [DeviceSanitizer] Support detecting misaligned access error
-  set(UNIFIED_RUNTIME_TAG aa08f8a001b0c8235459b3c284f50b2d069913e7)
+  set(UNIFIED_RUNTIME_TAG 7dbb6ec3d62aebdd6bee658e17b20c9075999c41)
 
   fetch_adapter_source(level_zero
     ${UNIFIED_RUNTIME_REPO}

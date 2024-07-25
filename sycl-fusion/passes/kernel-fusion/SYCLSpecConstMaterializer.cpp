@@ -285,6 +285,7 @@ PreservedAnalyses SYCLSpecConstMaterializer::run(Function &F,
       DebugFlag = true;
       llvm::setCurrentDebugType(DEBUG_TYPE);
     }
+  
 
   Mod = F.getParent();
   LLVM_DEBUG(dbgs() << "Working on function:\n==================\n"

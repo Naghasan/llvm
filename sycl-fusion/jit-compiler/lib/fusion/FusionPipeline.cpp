@@ -14,6 +14,7 @@
 #include "internalization/Internalization.h"
 #include "kernel-fusion/SYCLKernelFusion.h"
 #include "kernel-fusion/SYCLSpecConstMaterializer.h"
+#include "kernel-fusion/TargetPostfix.h"
 #include "kernel-info/SYCLKernelInfo.h"
 #include "syclcp/SYCLCP.h"
 
@@ -173,6 +174,7 @@ bool FusionPipeline::runMaterializerPasses(
   // Register inserter and materializer passes.
   {
     FunctionPassManager FPM;
+    FPM.addPass(TargetPostfix{JM.getCPU(), JM.getFeatures()});
     MPM.addPass(SYCLSpecConstDataInserter{SpecConstData});
     FPM.addPass(SYCLSpecConstMaterializer{});
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
