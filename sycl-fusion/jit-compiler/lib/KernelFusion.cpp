@@ -18,6 +18,7 @@
 #include "translation/KernelTranslation.h"
 #include "translation/SPIRVLLVMTranslation.h"
 #include <llvm/Support/Error.h>
+#include <llvm/Support/Debug.h>
 #include <sstream>
 #include <iostream>
 using namespace jit_compiler;
@@ -102,6 +103,9 @@ std::cerr << " >>>>>>> Create kernel info\n";
   }
           std::cerr << " >>>>>>> Kernel loaded " << "\n";
   std::unique_ptr<llvm::Module> NewMod = std::move(*ModOrError);
+  llvm::DebugFlag = true;
+  llvm::setCurrentDebugType("amdgpu-subtarget");
+
   JITMachine JM{*NewMod, TargetFormat, TargetCPU,
           TargetFeatures};
   // Create and cache the Target and TargetMachine before entering the pipeline

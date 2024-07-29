@@ -17,6 +17,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/TargetParser/TargetParser.h"
 
 namespace {
   static const char *TARGET_CPU_ATTRIBUTE = "target-cpu";
@@ -73,6 +74,7 @@ llvm::Expected<llvm::TargetMachine *> jit_compiler::JITMachine::getOrCreateTarge
 
   PROPAGATE_ERROR(Tgt, getOrCreateTarget());
   // FIXME: Check whether we can provide more accurate target information here
+  std::cerr << " >>>>>>> Features " << TargetFeatures.str() << "\n";
   TargetMachine = Tgt->createTargetMachine(TargetTriple, TargetCPU, TargetFeatures, {},
                                               llvm::Reloc::PIC_, std::nullopt,
                                               llvm::CodeGenOptLevel::Default);
@@ -130,9 +132,23 @@ void jit_compiler::JITMachine::initAMDGPU(const llvm::Module &Mod, llvm::StringR
   }
   llvm::errs() << "------ TargetCPU " << TargetCPU << "\n";
   if (TargetFeatures.empty()) {
-    if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_FEATURE_ATTRIBUTE)) {
-      TargetFeatures = KernelFunc->getFnAttribute(TARGET_FEATURE_ATTRIBUTE)
+    if (KernelFunc) {
+      if (KernelFunc && KernelFunc->hasFnAttribute(TARGET_FEATURE_ATTRIBUTE))
+        TargetFeatures = KernelFunc->getFnAttribute(TARGET_FEATURE_ATTRIBUTE)
                      .getValueAsString();
     }
+    else {
+      llvm::StringMap<bool> Features;
+      llvm::Triple TT{TargetTriple};
+      llvm::AMDGPU::fillAMDGPUFeatureMap(TargetCPU, TT, Features);
+
+      // TODO: Should move this logic into TargetParser
+      std::string ErrorMsg;
+      if (!llvm::AMDGPU::insertWaveSizeFeature(TargetCPU, TT, Features, ErrorMsg)) {
+        //Diags.Report(diag::err_invalid_feature_combination) << ErrorMsg;
+        return;
+      }
+    }
   }
+
 }

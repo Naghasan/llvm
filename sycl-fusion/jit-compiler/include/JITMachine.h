@@ -48,6 +48,8 @@ private:
   llvm::StringRef TargetCPU;
   llvm::StringRef TargetFeatures;
 
+  std::string AjustedTargetFeatures;
+
   const llvm::Target *Target = nullptr;
   llvm::TargetMachine *TargetMachine = nullptr;
 };
