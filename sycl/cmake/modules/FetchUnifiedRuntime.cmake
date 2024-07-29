@@ -23,6 +23,9 @@ option(SYCL_PI_UR_USE_FETCH_CONTENT
 set(SYCL_PI_UR_SOURCE_DIR
   "" CACHE PATH "Path to root of Unified Runtime repository")
 
+option(SYCL_UMF_DISABLE_HWLOC
+  "Disable hwloc support in UMF" ON)
+
 # Here we override the defaults to disable building tests from unified-runtime
 set(UR_BUILD_EXAMPLES OFF CACHE BOOL "Build example applications." FORCE)
 set(UR_BUILD_TESTS OFF CACHE BOOL "Build unit tests." FORCE)
@@ -119,7 +122,7 @@ if(SYCL_PI_UR_USE_FETCH_CONTENT)
   # Date:   Thu Jul 11 15:12:38 2024 +0100
   #     Merge pull request #1747 from AllanZyne/review/yang/misalign_access
   #     [DeviceSanitizer] Support detecting misaligned access error
-  set(UNIFIED_RUNTIME_TAG 7b8eabed1d0c4725590bfc137cefa9aa8ec6c609)
+  set(UNIFIED_RUNTIME_TAG c149cc49401f63d1eb2a766f979826058e5bb237)
 
   set(UMF_BUILD_EXAMPLES OFF CACHE INTERNAL "EXAMPLES")
   # Due to the use of dependentloadflag and no installer for UMF and hwloc we need
@@ -127,6 +130,8 @@ if(SYCL_PI_UR_USE_FETCH_CONTENT)
   if(WIN32)
     set(UMF_BUILD_SHARED_LIBRARY OFF CACHE INTERNAL "Build UMF shared library")
     set(UMF_LINK_HWLOC_STATICALLY ON CACHE INTERNAL "static HWLOC")
+  else()
+    set(UMF_DISABLE_HWLOC ${SYCL_UMF_DISABLE_HWLOC} CACHE INTERNAL "Disable hwloc for UMF")
   endif()
 
   fetch_adapter_source(level_zero
