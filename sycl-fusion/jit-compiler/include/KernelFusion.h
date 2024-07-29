@@ -67,6 +67,7 @@ JITResult materializeSpecConstants(const char *KernelName,
                                    View<unsigned char> SpecConstBlob,
                                    const char *TargetCPU,
                                    const char *TargetFeatures);
+
 JITResult jitModule(jit_compiler::SYCLKernelBinaryInfo &BinInfo,
           const char *TargetCPU, const char *TargetFeatures);
 

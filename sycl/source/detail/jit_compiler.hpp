@@ -27,9 +27,6 @@ template <typename T> class DynArray;
 using ArgUsageMask = DynArray<uint8_t>;
 } // namespace jit_compiler
 
-struct pi_device_binaries_struct;
-struct _pi_offload_entry_struct;
-
 namespace sycl {
 inline namespace _V1 {
 namespace detail {
@@ -40,6 +37,11 @@ public:
   std::unique_ptr<detail::CG>
   fuseKernels(QueueImplPtr Queue, std::vector<ExecCGCommand *> &InputKernels,
               const property_list &);
+  ur_kernel_handle_t
+  materializeSpecConstants(QueueImplPtr Queue,
+                           const RTDeviceBinaryImage *BinImage,
+                           const std::string &KernelName,
+                           const std::vector<unsigned char> &SpecConstBlob);
 
   pi_device_binary jitModule(
     DeviceImplPtr Device, const pi_device_binary_struct &RawDeviceImage,
@@ -69,7 +71,7 @@ private:
   jit_compiler &operator=(const jit_compiler &) = delete;
   jit_compiler &operator=(const jit_compiler &&) = delete;
 
-  pi_device_binaries
+  sycl_device_binaries
   createPIDeviceBinary(const ::jit_compiler::SYCLKernelInfo &FusedKernelInfo,
                        ::jit_compiler::BinaryFormat Format,const std::string &Arch = {});
   /// Create a pi_device_binary using the source RawDeviceImage.
@@ -87,7 +89,7 @@ private:
   // Indicate availability of the JIT compiler
   bool Available;
 
-  // Manages the lifetime of the PI structs for device binaries.
+  // Manages the lifetime of the UR structs for device binaries.
   std::vector<DeviceBinariesCollection> JITDeviceBinaries;
 
 #if SYCL_EXT_CODEPLAY_KERNEL_FUSION
