@@ -726,6 +726,16 @@ runSYCLPostLinkTool(ArrayRef<StringRef> InputFiles, const ArgList &Args) {
   SmallVector<StringRef, 8> CmdArgs;
   CmdArgs.push_back(*SYCLPostLinkPath);
   const llvm::Triple Triple(Args.getLastArgValue(OPT_triple_EQ));
+  Arg *SYCLDeviceLibLoc = Args.getLastArg(OPT_sycl_device_library_location_EQ);
+  if (SYCLDeviceLibLoc && !Triple.isSPIRAOT()) {
+    std::string SYCLDeviceLibLocParam = SYCLDeviceLibLoc->getValue();
+    std::string BF16DeviceLibLoc =
+        SYCLDeviceLibLocParam + "/libsycl-native-bfloat16.bc";
+    if (llvm::sys::fs::exists(BF16DeviceLibLoc)) {
+      SYCLDeviceLibLocParam = "--device-lib-dir=" + SYCLDeviceLibLocParam;
+      CmdArgs.push_back(Args.MakeArgString(StringRef(SYCLDeviceLibLocParam)));
+    }
+  }
   getTripleBasedSYCLPostLinkOpts(Args, CmdArgs, Triple);
   StringRef SYCLPostLinkOptions;
   if (Arg *A = Args.getLastArg(OPT_sycl_post_link_options_EQ))
@@ -853,7 +863,7 @@ getTripleBasedSPIRVTransOpts(const ArgList &Args,
       ",+SPV_INTEL_arbitrary_precision_fixed_point"
       ",+SPV_INTEL_arbitrary_precision_floating_point"
       ",+SPV_INTEL_variable_length_array,+SPV_INTEL_fp_fast_math_mode"
-      ",+SPV_INTEL_long_constant_composite"
+      ",+SPV_INTEL_long_composites"
       ",+SPV_INTEL_arithmetic_fence"
       ",+SPV_INTEL_global_variable_decorations"
       ",+SPV_INTEL_cache_controls"
