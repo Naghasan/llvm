@@ -73,6 +73,8 @@ enum ActionType {
   GenClangOpenCLBuiltinHeader,
   GenClangOpenCLBuiltinTests,
   GenClangSPIRVBuiltins,
+  GenClangSPIRVBuiltinTests,
+  GenClangSPIRVBuiltinHeader,
   GenCXX11AttributeInfo,
   GenAttributeSpellingList,
   GenArmNeon,
@@ -245,6 +247,11 @@ cl::opt<ActionType> Action(
                    "Generate OpenCL builtin declaration tests"),
         clEnumValN(GenClangSPIRVBuiltins, "gen-clang-spirv-builtins",
                    "Generate SPIR-V builtin declaration handlers"),
+        clEnumValN(GenClangSPIRVBuiltinTests, "gen-clang-spirv-builtin-tests",
+                   "Generate OpenCL builtin declaration tests"),
+        clEnumValN(GenClangSPIRVBuiltinHeader,
+                   "gen-clang-spirv-builtin-header",
+                   "Generate SPIRV builtin header"),
         clEnumValN(GenCXX11AttributeInfo, "gen-cxx11-attribute-info",
                    "Generate CXX11 attributes info"),
         clEnumValN(GenAttributeSpellingList, "gen-attribute-spelling-list",
@@ -502,6 +509,12 @@ bool ClangTableGenMain(raw_ostream &OS, const RecordKeeper &Records) {
     break;
   case GenClangSPIRVBuiltins:
     EmitClangSPIRVBuiltins(Records, OS);
+    break;
+  case GenClangSPIRVBuiltinTests:
+    EmitClangSPIRVBuiltinTests(Records, OS);
+    break;
+  case GenClangSPIRVBuiltinHeader:
+    EmitClangSPIRVBuiltinHeader(Records, OS);
     break;
   case GenClangSyntaxNodeList:
     EmitClangSyntaxNodeList(Records, OS);

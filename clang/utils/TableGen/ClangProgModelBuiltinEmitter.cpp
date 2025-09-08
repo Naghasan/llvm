@@ -342,6 +342,24 @@ public:
   void emit() override;
 };
 
+class SPIRVBuiltinHeaderEmitter : public OpenCLBuiltinFileEmitterBase {
+public:
+  SPIRVBuiltinHeaderEmitter(const RecordKeeper &Records, raw_ostream &OS)
+      : OpenCLBuiltinFileEmitterBase(Records, OS) {}
+
+  // Entrypoint to generate the header.
+  void emit() override;
+};
+
+class SPIRVBuiltinTestEmitter : public OpenCLBuiltinFileEmitterBase {
+public:
+  SPIRVBuiltinTestEmitter(const RecordKeeper &Records, raw_ostream &OS)
+      : OpenCLBuiltinFileEmitterBase(Records, OS) {}
+
+  // Entrypoint to generate the functions for testing all OpenCL builtin
+  // functions.
+  void emit() override;
+};
 } // namespace
 
 void BuiltinNameEmitter::Emit() {
@@ -1034,12 +1052,12 @@ std::string OpenCLBuiltinFileEmitterBase::getTypeString(const Record *Type,
 
   auto PrintAddrSpace = [&S](StringRef AddrSpace) {
     S += StringSwitch<const char *>(AddrSpace)
-             .Case("clang::LangAS::opencl_private", "__private")
-             .Case("clang::LangAS::opencl_global", "__global")
-             .Case("clang::LangAS::opencl_constant", "__constant")
-             .Case("clang::LangAS::opencl_local", "__local")
-             .Case("clang::LangAS::opencl_generic", "__generic")
-             .Default("__private");
+             .Case("clang::LangAS::opencl_private", "__spv_private")
+             .Case("clang::LangAS::opencl_global", "__spv_global")
+             .Case("clang::LangAS::opencl_constant", "__spv_constant")
+             .Case("clang::LangAS::opencl_local", "__spv_local")
+             .Case("clang::LangAS::opencl_generic", "__spv_generic")
+             .Default("__spv_private");
     S += " ";
   };
   if (Flags.IsPointer) {
@@ -1058,8 +1076,9 @@ std::string OpenCLBuiltinFileEmitterBase::getTypeString(const Record *Type,
 
   S += Type->getValueAsString("Name").str();
   if (VectorSize > 1) {
-    S += std::to_string(VectorSize);
+    S += "_v" + std::to_string(VectorSize);
   }
+  S += "_t";
 
   if (Type->getValueAsBit("IsPointer") || Flags.IsPointer) {
     S += " *";
@@ -1117,8 +1136,8 @@ void OpenCLBuiltinFileEmitterBase::expandTypesInSignature(
     getTypeLists(Arg, Flags, TypeList, VectorList);
 
     // Insert the Cartesian product of the types and vector sizes.
-    for (const auto &Vector : VectorList) {
-      for (const auto &Type : TypeList) {
+    for (const auto &Type : TypeList) {
+      for (const auto &Vector : VectorList) {
         std::string FullType = getTypeString(Type, Flags, Vector);
         ExpandedArg.push_back(FullType);
 
@@ -1361,6 +1380,268 @@ void OpenCLBuiltinHeaderEmitter::emit() {
         "#pragma OPENCL EXTENSION all : disable\n";
 }
 
+void SPIRVBuiltinTestEmitter::emit() {
+  emitSourceFileHeader("SPIRV Builtin exhaustive testing", OS, Records);
+static std::map <std::string, std::string> TypeToLLVM { 
+{"__spv_uint8_t", "i8"},
+{"__spv_int8_t", "i8"},
+{"__spv_uint8_v2_t", "<2 x i8>"},
+{"__spv_int8_v2_t", "<2 x i8>"},
+{"__spv_uint8_v3_t", "<3 x i8>"},
+{"__spv_int8_v3_t", "<3 x i8>"},
+{"__spv_uint8_v4_t", "<4 x i8>"},
+{"__spv_int8_v4_t", "<4 x i8>"},
+{"__spv_uint8_v8_t", "<8 x i8>"},
+{"__spv_int8_v8_t", "<8 x i8>"},
+{"__spv_uint8_v16_t", "<16 x i8>"},
+{"__spv_int8_v16_t", "<16 x i8>"},
+{"__spv_uint16_t", "i16"},
+{"__spv_int16_t", "i16"},
+{"__spv_uint16_v2_t", "<2 x i16>"},
+{"__spv_int16_v2_t", "<2 x i16>"},
+{"__spv_uint16_v3_t", "<3 x i16>"},
+{"__spv_int16_v3_t", "<3 x i16>"},
+{"__spv_uint16_v4_t", "<4 x i16>"},
+{"__spv_int16_v4_t", "<4 x i16>"},
+{"__spv_uint16_v8_t", "<8 x i16>"},
+{"__spv_int16_v8_t", "<8 x i16>"},
+{"__spv_uint16_v16_t", "<16 x i16>"},
+{"__spv_int16_v16_t", "<16 x i16>"},
+{"__spv_uint32_t", "i32"},
+{"__spv_int32_t", "i32"},
+{"__spv_uint32_v2_t", "<2 x i32>"},
+{"__spv_int32_v2_t", "<2 x i32>"},
+{"__spv_uint32_v3_t", "<3 x i32>"},
+{"__spv_int32_v3_t", "<3 x i32>"},
+{"__spv_uint32_v4_t", "<4 x i32>"},
+{"__spv_int32_v4_t", "<4 x i32>"},
+{"__spv_uint32_v8_t", "<8 x i32>"},
+{"__spv_int32_v8_t", "<8 x i32>"},
+{"__spv_uint32_v16_t", "<16 x i32>"},
+{"__spv_int32_v16_t", "<16 x i32>"},
+{"__spv_uint64_t", "i64"},
+{"__spv_int64_t", "i64"},
+{"__spv_uint64_v2_t", "<2 x i64>"},
+{"__spv_int64_v2_t", "<2 x i64>"},
+{"__spv_uint64_v3_t", "<3 x i64>"},
+{"__spv_int64_v3_t", "<3 x i64>"},
+{"__spv_uint64_v4_t", "<4 x i64>"},
+{"__spv_int64_v4_t", "<4 x i64>"},
+{"__spv_uint64_v8_t", "<8 x i64>"},
+{"__spv_int64_v8_t", "<8 x i64>"},
+{"__spv_uint64_v16_t", "<16 x i64>"},
+{"__spv_int64_v16_t", "<16 x i64>"},
+{"__spv_fp16_t", "f16"},
+{"__spv_fp16_v2_t", "<2 x f16>"},
+{"__spv_fp16_v3_t", "<3 x f16>"},
+{"__spv_fp16_v4_t", "<4 x f16>"},
+{"__spv_fp16_v8_t", "<8 x f16>"},
+{"__spv_fp16_v16_t", "<16 x f16>"},
+{"__spv_fp32_t", "f32"},
+{"__spv_fp32_v2_t", "<2 x f32>"},
+{"__spv_fp32_v3_t", "<3 x f32>"},
+{"__spv_fp32_v4_t", "<4 x f32>"},
+{"__spv_fp32_v8_t", "<8 x f32>"},
+{"__spv_fp32_v16_t", "<16 x f32>"},
+{"__spv_fp64_t", "f64"},
+{"__spv_fp64_v2_t", "<2 x f64>"},
+{"__spv_fp64_v3_t", "<3 x f64>"},
+{"__spv_fp64_v4_t", "<4 x f64>"},
+{"__spv_fp64_v8_t", "<8 x f64>"},
+{"__spv_fp64_v16_t", "<16 x f64>"}
+};
+static std::map <std::string, std::string> TypeToMangle { 
+{"__spv_uint8_t", "__spv_uint8_t"},
+{"__spv_int8_t", "__spv_int8_t"},
+{"__spv_uint8_v2_t", "__spv_uint8_v2_t"},
+{"__spv_int8_v2_t", "__spv_int8_v2_t"},
+{"__spv_uint8_v3_t", "__spv_uint8_v3_t"},
+{"__spv_int8_v3_t", "__spv_int8_v3_t"},
+{"__spv_uint8_v4_t", "__spv_uint8_v4_t"},
+{"__spv_int8_v4_t", "__spv_int8_v4_t"},
+{"__spv_uint8_v8_t", "__spv_uint8_v8_t"},
+{"__spv_int8_v8_t", "__spv_int8_v8_t"},
+{"__spv_uint8_v16_t", "__spv_uint8_v16_t"},
+{"__spv_int8_v16_t", "__spv_int8_v16_t"},
+{"__spv_uint16_t", "__spv_uint16_t"},
+{"__spv_int16_t", "__spv_int16_t"},
+{"__spv_uint16_v2_t", "__spv_uint16_v2_t"},
+{"__spv_int16_v2_t", "__spv_int16_v2_t"},
+{"__spv_uint16_v3_t", "__spv_uint16_v3_t"},
+{"__spv_int16_v3_t", "__spv_int16_v3_t"},
+{"__spv_uint16_v4_t", "__spv_uint16_v4_t"},
+{"__spv_int16_v4_t", "__spv_int16_v4_t"},
+{"__spv_uint16_v8_t", "__spv_uint16_v8_t"},
+{"__spv_int16_v8_t", "__spv_int16_v8_t"},
+{"__spv_uint16_v16_t", "__spv_uint16_v16_t"},
+{"__spv_int16_v16_t", "__spv_int16_v16_t"},
+{"__spv_uint32_t", "__spv_uint32_t"},
+{"__spv_int32_t", "__spv_int32_t"},
+{"__spv_uint32_v2_t", "__spv_uint32_v2_t"},
+{"__spv_int32_v2_t", "__spv_int32_v2_t"},
+{"__spv_uint32_v3_t", "__spv_uint32_v3_t"},
+{"__spv_int32_v3_t", "__spv_int32_v3_t"},
+{"__spv_uint32_v4_t", "__spv_uint32_v4_t"},
+{"__spv_int32_v4_t", "__spv_int32_v4_t"},
+{"__spv_uint32_v8_t", "__spv_uint32_v8_t"},
+{"__spv_int32_v8_t", "__spv_int32_v8_t"},
+{"__spv_uint32_v16_t", "__spv_uint32_v16_t"},
+{"__spv_int32_v16_t", "__spv_int32_v16_t"},
+{"__spv_uint64_t", "__spv_uint64_t"},
+{"__spv_int64_t", "__spv_int64_t"},
+{"__spv_uint64_v2_t", "__spv_uint64_v2_t"},
+{"__spv_int64_v2_t", "__spv_int64_v2_t"},
+{"__spv_uint64_v3_t", "__spv_uint64_v3_t"},
+{"__spv_int64_v3_t", "__spv_int64_v3_t"},
+{"__spv_uint64_v4_t", "__spv_uint64_v4_t"},
+{"__spv_int64_v4_t", "__spv_int64_v4_t"},
+{"__spv_uint64_v8_t", "__spv_uint64_v8_t"},
+{"__spv_int64_v8_t", "__spv_int64_v8_t"},
+{"__spv_uint64_v16_t", "__spv_uint64_v16_t"},
+{"__spv_int64_v16_t", "__spv_int64_v16_t"},
+{"__spv_fp16_t", "__spv_fp16_t"},
+{"__spv_fp16_v2_t", "__spv_fp16_v2_t"},
+{"__spv_fp16_v3_t", "__spv_fp16_v3_t"},
+{"__spv_fp16_v4_t", "__spv_fp16_v4_t"},
+{"__spv_fp16_v8_t", "__spv_fp16_v8_t"},
+{"__spv_fp16_v16_t", "__spv_fp16_v16_t"},
+{"__spv_fp32_t", "__spv_fp32_t"},
+{"__spv_fp32_v2_t", "__spv_fp32_v2_t"},
+{"__spv_fp32_v3_t", "__spv_fp32_v3_t"},
+{"__spv_fp32_v4_t", "__spv_fp32_v4_t"},
+{"__spv_fp32_v8_t", "__spv_fp32_v8_t"},
+{"__spv_fp32_v16_t", "__spv_fp32_v16_t"},
+{"__spv_fp64_t", "__spv_fp64_t"},
+{"__spv_fp64_v2_t", "__spv_fp64_v2_t"},
+{"__spv_fp64_v3_t", "__spv_fp64_v3_t"},
+{"__spv_fp64_v4_t", "__spv_fp64_v4_t"},
+{"__spv_fp64_v8_t", "__spv_fp64_v8_t"},
+{"__spv_fp64_v16_t", "__spv_fp64_v16_t"}
+};
+  // Ensure each test has a unique name by numbering them.
+  unsigned TestID = 0;
+  OS << R"(
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple nvptx64 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=NV
+
+#include "__clang_spirv_builtins.h"
+)";
+
+  // Iterate over all builtins.
+  ArrayRef<const Record *> Builtins =
+      Records.getAllDerivedDefinitions("Builtin");
+
+  for (const auto *B : Builtins) {
+    StringRef Name = B->getValueAsString("Name");
+
+    SmallVector<SmallVector<std::string, 2>, 4> FTypes;
+    expandTypesInSignature(B->getValueAsListOfDefs("Signature"), FTypes);
+
+    OS << "// Test " << Name << "\n";
+
+    auto EmitCheck = [&](StringRef Prefix, StringRef Name,
+                         ArrayRef<std::string> Signature) {
+      OS << "// " << Prefix << ": call noundef ";
+      OS << TypeToLLVM[Signature[0]] << " @_Z" << Name.size() << Name;
+      if (Signature.size() == 1)
+        OS << "v";
+      else {
+        for (unsigned I = 1; I < Signature.size(); I++) {
+          OS << TypeToMangle[Signature[I]];
+        }
+      }
+      OS << "(";
+      for (unsigned I = 1; I < Signature.size(); I++) {
+        if (I != 1)
+          OS << ", ";
+        OS << TypeToMangle[Signature[I]] << " {{.*}}";
+      }
+      OS << ")\n";
+    };
+
+    for (const auto &Signature : FTypes) {
+
+      EmitCheck("CHECK", Name, Signature);
+      EmitCheck("NV", Name, Signature);
+
+      // Emit function declaration.
+      OS << Signature[0] << " test" << TestID++ << "_" << Name << "(";
+      if (Signature.size() > 1) {
+        for (unsigned I = 1; I < Signature.size(); I++) {
+          if (I != 1)
+            OS << ", ";
+          OS << Signature[I] << " arg" << I;
+        }
+      }
+      OS << ") {\n";
+
+      // Emit function body.
+      OS << "  ";
+      if (Signature[0] != "void") {
+        OS << "return ";
+      }
+      OS << Name << "(";
+      for (unsigned I = 1; I < Signature.size(); I++) {
+        if (I != 1)
+          OS << ", ";
+        OS << "arg" << I;
+      }
+      OS << ");\n";
+
+      // End of function body.
+      OS << "}\n";
+    }
+  }
+}
+
+void SPIRVBuiltinHeaderEmitter::emit() {
+  emitSourceFileHeader("SPIRV Builtin declarations", OS, Records);
+
+  OS << R"(
+#include "__clang_spirv_builtins_types.h"
+
+)";
+
+  // Iterate over all builtins; sort to follow order of definition in .td file.
+  std::vector<const Record *> Builtins =
+      Records.getAllDerivedDefinitions("Builtin");
+
+  for (const auto *B : Builtins) {
+    StringRef Name = B->getValueAsString("Name");
+
+    SmallVector<SmallVector<std::string, 2>, 4> FTypes;
+    expandTypesInSignature(B->getValueAsListOfDefs("Signature"), FTypes);
+
+    for (const auto &Signature : FTypes) {
+      StringRef OptionalTypeExtEndif = emitTypeExtensionGuards(Signature);
+
+      // Emit function declaration.
+      OS << Signature[0] << " __SPIRV_BUILTIN_ALIAS() __SPIRV_overloadable ";
+      // if (B->getValueAsBit("IsConst"))
+      //   OS << "__cnfn ";
+      // if (B->getValueAsBit("IsPure"))
+      //   OS << "__purefn ";
+      if (B->getValueAsBit("IsConv"))
+        OS << "__SPIRV_convergent ";
+
+      OS << Name << "(";
+      if (Signature.size() > 1) {
+        for (unsigned I = 1; I < Signature.size(); I++) {
+          if (I != 1)
+            OS << ", ";
+          OS << Signature[I];
+        }
+      }
+      OS << ") __SPIRV_NOEXCEPT;\n";
+
+      OS << OptionalTypeExtEndif;
+    }
+  }
+}
+
 namespace clang {
 void EmitClangOpenCLBuiltins(const RecordKeeper &Records, raw_ostream &OS) {
   BuiltinNameEmitter NameChecker(Records, OS, "OpenCL");
@@ -1381,6 +1662,18 @@ void EmitClangOpenCLBuiltinHeader(const RecordKeeper &Records,
 void EmitClangOpenCLBuiltinTests(const RecordKeeper &Records,
                                  raw_ostream &OS) {
   OpenCLBuiltinTestEmitter TestFileGenerator(Records, OS);
+  TestFileGenerator.emit();
+}
+
+void EmitClangSPIRVBuiltinHeader(const RecordKeeper &Records,
+                                  raw_ostream &OS) {
+  SPIRVBuiltinHeaderEmitter HeaderFileGenerator(Records, OS);
+  HeaderFileGenerator.emit();
+}
+
+void EmitClangSPIRVBuiltinTests(const RecordKeeper &Records,
+                                 raw_ostream &OS) {
+  SPIRVBuiltinTestEmitter TestFileGenerator(Records, OS);
   TestFileGenerator.emit();
 }
 
