@@ -3128,6 +3128,40 @@ bool SPIRVInstructionSelector::selectIntrinsic(Register ResVReg,
     return selectExtInst(ResVReg, ResType, I, GL::Reflect);
   case Intrinsic::spv_rsqrt:
     return selectExtInst(ResVReg, ResType, I, CL::rsqrt, GL::InverseSqrt);
+  case Intrinsic::spv_acosh:
+    return selectExtInst(ResVReg, ResType, I, CL::acosh, GL::Acosh);
+  case Intrinsic::spv_asinh:
+    return selectExtInst(ResVReg, ResType, I, CL::asinh, GL::Asinh);
+  case Intrinsic::spv_atanh:
+    return selectExtInst(ResVReg, ResType, I, CL::atanh, GL::Atanh);
+  case Intrinsic::spv_cospi:
+    return selectExtInst(ResVReg, ResType, I, CL::cospi);
+  case Intrinsic::spv_sinpi:
+    return selectExtInst(ResVReg, ResType, I, CL::sinpi);
+  case Intrinsic::spv_tanpi:
+    return selectExtInst(ResVReg, ResType, I, CL::tanpi);
+  case Intrinsic::spv_acospi:
+    return selectExtInst(ResVReg, ResType, I, CL::acospi);
+  case Intrinsic::spv_asinpi:
+    return selectExtInst(ResVReg, ResType, I, CL::asinpi);
+  case Intrinsic::spv_atanpi:
+    return selectExtInst(ResVReg, ResType, I, CL::atanpi);
+  case Intrinsic::spv_cbrt:
+    return selectExtInst(ResVReg, ResType, I, CL::cbrt);
+  case Intrinsic::spv_erf:
+    return selectExtInst(ResVReg, ResType, I, CL::erf);
+  case Intrinsic::spv_erfc:
+    return selectExtInst(ResVReg, ResType, I, CL::erfc);
+  case Intrinsic::spv_expm1:
+    return selectExtInst(ResVReg, ResType, I, CL::expm1);
+  case Intrinsic::spv_lgamma:
+    return selectExtInst(ResVReg, ResType, I, CL::lgamma);
+  case Intrinsic::spv_tgamma:
+    return selectExtInst(ResVReg, ResType, I, CL::tgamma);
+  case Intrinsic::spv_log1p:
+    return selectExtInst(ResVReg, ResType, I, CL::log1p);
+  case Intrinsic::spv_logb:
+    return selectExtInst(ResVReg, ResType, I, CL::logb);
   case Intrinsic::spv_sign:
     return selectSign(ResVReg, ResType, I);
   case Intrinsic::spv_smoothstep:
