@@ -1431,101 +1431,168 @@ static std::map <std::string, std::string> TypeToLLVM {
 {"__spv_int64_v8_t", "<8 x i64>"},
 {"__spv_uint64_v16_t", "<16 x i64>"},
 {"__spv_int64_v16_t", "<16 x i64>"},
-{"__spv_fp16_t", "f16"},
-{"__spv_fp16_v2_t", "<2 x f16>"},
-{"__spv_fp16_v3_t", "<3 x f16>"},
-{"__spv_fp16_v4_t", "<4 x f16>"},
-{"__spv_fp16_v8_t", "<8 x f16>"},
-{"__spv_fp16_v16_t", "<16 x f16>"},
-{"__spv_fp32_t", "f32"},
-{"__spv_fp32_v2_t", "<2 x f32>"},
-{"__spv_fp32_v3_t", "<3 x f32>"},
-{"__spv_fp32_v4_t", "<4 x f32>"},
-{"__spv_fp32_v8_t", "<8 x f32>"},
-{"__spv_fp32_v16_t", "<16 x f32>"},
-{"__spv_fp64_t", "f64"},
-{"__spv_fp64_v2_t", "<2 x f64>"},
-{"__spv_fp64_v3_t", "<3 x f64>"},
-{"__spv_fp64_v4_t", "<4 x f64>"},
-{"__spv_fp64_v8_t", "<8 x f64>"},
-{"__spv_fp64_v16_t", "<16 x f64>"}
+{"__spv_fp16_t", "half"},
+{"__spv_fp16_v2_t", "<2 x half>"},
+{"__spv_fp16_v3_t", "<3 x half>"},
+{"__spv_fp16_v4_t", "<4 x half>"},
+{"__spv_fp16_v8_t", "<8 x half>"},
+{"__spv_fp16_v16_t", "<16 x half>"},
+{"__spv_fp32_t", "float"},
+{"__spv_fp32_v2_t", "<2 x float>"},
+{"__spv_fp32_v3_t", "<3 x float>"},
+{"__spv_fp32_v4_t", "<4 x float>"},
+{"__spv_fp32_v8_t", "<8 x float>"},
+{"__spv_fp32_v16_t", "<16 x float>"},
+{"__spv_fp64_t", "double"},
+{"__spv_fp64_v2_t", "<2 x double>"},
+{"__spv_fp64_v3_t", "<3 x double>"},
+{"__spv_fp64_v4_t", "<4 x double>"},
+{"__spv_fp64_v8_t", "<8 x double>"},
+{"__spv_fp64_v16_t", "<16 x double>"}
 };
 static std::map <std::string, std::string> TypeToMangle { 
-{"__spv_uint8_t", "__spv_uint8_t"},
-{"__spv_int8_t", "__spv_int8_t"},
-{"__spv_uint8_v2_t", "__spv_uint8_v2_t"},
-{"__spv_int8_v2_t", "__spv_int8_v2_t"},
-{"__spv_uint8_v3_t", "__spv_uint8_v3_t"},
-{"__spv_int8_v3_t", "__spv_int8_v3_t"},
-{"__spv_uint8_v4_t", "__spv_uint8_v4_t"},
-{"__spv_int8_v4_t", "__spv_int8_v4_t"},
-{"__spv_uint8_v8_t", "__spv_uint8_v8_t"},
-{"__spv_int8_v8_t", "__spv_int8_v8_t"},
-{"__spv_uint8_v16_t", "__spv_uint8_v16_t"},
-{"__spv_int8_v16_t", "__spv_int8_v16_t"},
-{"__spv_uint16_t", "__spv_uint16_t"},
-{"__spv_int16_t", "__spv_int16_t"},
-{"__spv_uint16_v2_t", "__spv_uint16_v2_t"},
-{"__spv_int16_v2_t", "__spv_int16_v2_t"},
-{"__spv_uint16_v3_t", "__spv_uint16_v3_t"},
-{"__spv_int16_v3_t", "__spv_int16_v3_t"},
-{"__spv_uint16_v4_t", "__spv_uint16_v4_t"},
-{"__spv_int16_v4_t", "__spv_int16_v4_t"},
-{"__spv_uint16_v8_t", "__spv_uint16_v8_t"},
-{"__spv_int16_v8_t", "__spv_int16_v8_t"},
-{"__spv_uint16_v16_t", "__spv_uint16_v16_t"},
-{"__spv_int16_v16_t", "__spv_int16_v16_t"},
-{"__spv_uint32_t", "__spv_uint32_t"},
-{"__spv_int32_t", "__spv_int32_t"},
-{"__spv_uint32_v2_t", "__spv_uint32_v2_t"},
-{"__spv_int32_v2_t", "__spv_int32_v2_t"},
-{"__spv_uint32_v3_t", "__spv_uint32_v3_t"},
-{"__spv_int32_v3_t", "__spv_int32_v3_t"},
-{"__spv_uint32_v4_t", "__spv_uint32_v4_t"},
-{"__spv_int32_v4_t", "__spv_int32_v4_t"},
-{"__spv_uint32_v8_t", "__spv_uint32_v8_t"},
-{"__spv_int32_v8_t", "__spv_int32_v8_t"},
-{"__spv_uint32_v16_t", "__spv_uint32_v16_t"},
-{"__spv_int32_v16_t", "__spv_int32_v16_t"},
-{"__spv_uint64_t", "__spv_uint64_t"},
-{"__spv_int64_t", "__spv_int64_t"},
-{"__spv_uint64_v2_t", "__spv_uint64_v2_t"},
-{"__spv_int64_v2_t", "__spv_int64_v2_t"},
-{"__spv_uint64_v3_t", "__spv_uint64_v3_t"},
-{"__spv_int64_v3_t", "__spv_int64_v3_t"},
-{"__spv_uint64_v4_t", "__spv_uint64_v4_t"},
-{"__spv_int64_v4_t", "__spv_int64_v4_t"},
-{"__spv_uint64_v8_t", "__spv_uint64_v8_t"},
-{"__spv_int64_v8_t", "__spv_int64_v8_t"},
-{"__spv_uint64_v16_t", "__spv_uint64_v16_t"},
-{"__spv_int64_v16_t", "__spv_int64_v16_t"},
-{"__spv_fp16_t", "__spv_fp16_t"},
-{"__spv_fp16_v2_t", "__spv_fp16_v2_t"},
-{"__spv_fp16_v3_t", "__spv_fp16_v3_t"},
-{"__spv_fp16_v4_t", "__spv_fp16_v4_t"},
-{"__spv_fp16_v8_t", "__spv_fp16_v8_t"},
-{"__spv_fp16_v16_t", "__spv_fp16_v16_t"},
-{"__spv_fp32_t", "__spv_fp32_t"},
-{"__spv_fp32_v2_t", "__spv_fp32_v2_t"},
-{"__spv_fp32_v3_t", "__spv_fp32_v3_t"},
-{"__spv_fp32_v4_t", "__spv_fp32_v4_t"},
-{"__spv_fp32_v8_t", "__spv_fp32_v8_t"},
-{"__spv_fp32_v16_t", "__spv_fp32_v16_t"},
-{"__spv_fp64_t", "__spv_fp64_t"},
-{"__spv_fp64_v2_t", "__spv_fp64_v2_t"},
-{"__spv_fp64_v3_t", "__spv_fp64_v3_t"},
-{"__spv_fp64_v4_t", "__spv_fp64_v4_t"},
-{"__spv_fp64_v8_t", "__spv_fp64_v8_t"},
-{"__spv_fp64_v16_t", "__spv_fp64_v16_t"}
+{"__spv_uint8_t", "h"},
+{"__spv_int8_t", "a"},
+{"__spv_uint8_v2_t", "Dv2_h"},
+{"__spv_int8_v2_t", "Dv2_a"},
+{"__spv_uint8_v3_t", "Dv3_h"},
+{"__spv_int8_v3_t", "Dv3_a"},
+{"__spv_uint8_v4_t", "Dv4_h"},
+{"__spv_int8_v4_t", "Dv4_a"},
+{"__spv_uint8_v8_t", "Dv8_h"},
+{"__spv_int8_v8_t", "Dv8_a"},
+{"__spv_uint8_v16_t", "Dv16_h"},
+{"__spv_int8_v16_t", "Dv16_a"},
+{"__spv_uint16_t", "t"},
+{"__spv_int16_t", "s"},
+{"__spv_uint16_v2_t", "Dv2_t"},
+{"__spv_int16_v2_t", "Dv2_s"},
+{"__spv_uint16_v3_t", "Dv3_t"},
+{"__spv_int16_v3_t", "Dv3_s"},
+{"__spv_uint16_v4_t", "Dv4_t"},
+{"__spv_int16_v4_t", "Dv4_s"},
+{"__spv_uint16_v8_t", "Dv8_t"},
+{"__spv_int16_v8_t", "Dv8_s"},
+{"__spv_uint16_v16_t", "Dv16_t"},
+{"__spv_int16_v16_t", "Dv16_s"},
+{"__spv_uint32_t", "j"},
+{"__spv_int32_t", "i"},
+{"__spv_uint32_v2_t", "Dv2_j"},
+{"__spv_int32_v2_t", "Dv2_i"},
+{"__spv_uint32_v3_t", "Dv3_j"},
+{"__spv_int32_v3_t", "Dv3_i"},
+{"__spv_uint32_v4_t", "Dv4_j"},
+{"__spv_int32_v4_t", "Dv4_i"},
+{"__spv_uint32_v8_t", "Dv8_j"},
+{"__spv_int32_v8_t", "Dv8_i"},
+{"__spv_uint32_v16_t", "Dv16_j"},
+{"__spv_int32_v16_t", "Dv16_i"},
+{"__spv_uint64_t", "m"},
+{"__spv_int64_t", "l"},
+{"__spv_uint64_v2_t", "Dv2_m"},
+{"__spv_int64_v2_t", "Dv2_l"},
+{"__spv_uint64_v3_t", "Dv2_m"},
+{"__spv_int64_v3_t", "Dv2_l"},
+{"__spv_uint64_v4_t", "Dv2_m"},
+{"__spv_int64_v4_t", "Dv2_l"},
+{"__spv_uint64_v8_t", "Dv2_m"},
+{"__spv_int64_v8_t", "Dv2_l"},
+{"__spv_uint64_v16_t", "Dv2_m"},
+{"__spv_int64_v16_t", "Dv2_l"},
+{"__spv_fp16_t", "DF16_"},
+{"__spv_fp16_v2_t", "Dv2_DF16_"},
+{"__spv_fp16_v3_t", "Dv3_DF16_"},
+{"__spv_fp16_v4_t", "Dv4_DF16_"},
+{"__spv_fp16_v8_t", "Dv8_DF16_"},
+{"__spv_fp16_v16_t", "Dv16_DF16_"},
+{"__spv_fp32_t", "f"},
+{"__spv_fp32_v2_t", "Dv2_f"},
+{"__spv_fp32_v3_t", "Dv3_f"},
+{"__spv_fp32_v4_t", "Dv4_f"},
+{"__spv_fp32_v8_t", "Dv8_f"},
+{"__spv_fp32_v16_t", "Dv16_f"},
+{"__spv_fp64_t", "d"},
+{"__spv_fp64_v2_t", "Dv2_d"},
+{"__spv_fp64_v3_t", "Dv3_d"},
+{"__spv_fp64_v4_t", "Dv4_d"},
+{"__spv_fp64_v8_t", "Dv8_d"},
+{"__spv_fp64_v16_t", "Dv16_d"}
+};
+static std::map <std::string, std::string> TypeToMangleWithHalf { 
+{"__spv_uint8_t", "h"},
+{"__spv_int8_t", "a"},
+{"__spv_uint8_v2_t", "Dv2_h"},
+{"__spv_int8_v2_t", "Dv2_a"},
+{"__spv_uint8_v3_t", "Dv3_h"},
+{"__spv_int8_v3_t", "Dv3_a"},
+{"__spv_uint8_v4_t", "Dv4_h"},
+{"__spv_int8_v4_t", "Dv4_a"},
+{"__spv_uint8_v8_t", "Dv8_h"},
+{"__spv_int8_v8_t", "Dv8_a"},
+{"__spv_uint8_v16_t", "Dv16_h"},
+{"__spv_int8_v16_t", "Dv16_a"},
+{"__spv_uint16_t", "t"},
+{"__spv_int16_t", "s"},
+{"__spv_uint16_v2_t", "Dv2_t"},
+{"__spv_int16_v2_t", "Dv2_s"},
+{"__spv_uint16_v3_t", "Dv3_t"},
+{"__spv_int16_v3_t", "Dv3_s"},
+{"__spv_uint16_v4_t", "Dv4_t"},
+{"__spv_int16_v4_t", "Dv4_s"},
+{"__spv_uint16_v8_t", "Dv8_t"},
+{"__spv_int16_v8_t", "Dv8_s"},
+{"__spv_uint16_v16_t", "Dv16_t"},
+{"__spv_int16_v16_t", "Dv16_s"},
+{"__spv_uint32_t", "j"},
+{"__spv_int32_t", "i"},
+{"__spv_uint32_v2_t", "Dv2_j"},
+{"__spv_int32_v2_t", "Dv2_i"},
+{"__spv_uint32_v3_t", "Dv3_j"},
+{"__spv_int32_v3_t", "Dv3_i"},
+{"__spv_uint32_v4_t", "Dv4_j"},
+{"__spv_int32_v4_t", "Dv4_i"},
+{"__spv_uint32_v8_t", "Dv8_j"},
+{"__spv_int32_v8_t", "Dv8_i"},
+{"__spv_uint32_v16_t", "Dv16_j"},
+{"__spv_int32_v16_t", "Dv16_i"},
+{"__spv_uint64_t", "m"},
+{"__spv_int64_t", "l"},
+{"__spv_uint64_v2_t", "Dv2_m"},
+{"__spv_int64_v2_t", "Dv2_l"},
+{"__spv_uint64_v3_t", "Dv2_m"},
+{"__spv_int64_v3_t", "Dv2_l"},
+{"__spv_uint64_v4_t", "Dv2_m"},
+{"__spv_int64_v4_t", "Dv2_l"},
+{"__spv_uint64_v8_t", "Dv2_m"},
+{"__spv_int64_v8_t", "Dv2_l"},
+{"__spv_uint64_v16_t", "Dv2_m"},
+{"__spv_int64_v16_t", "Dv2_l"},
+{"__spv_fp16_t", "Dh"},
+{"__spv_fp16_v2_t", "Dv2_Dh"},
+{"__spv_fp16_v3_t", "Dv3_Dh"},
+{"__spv_fp16_v4_t", "Dv4_Dh"},
+{"__spv_fp16_v8_t", "Dv8_Dh"},
+{"__spv_fp16_v16_t", "Dv16_Dh"},
+{"__spv_fp32_t", "f"},
+{"__spv_fp32_v2_t", "Dv2_f"},
+{"__spv_fp32_v3_t", "Dv3_f"},
+{"__spv_fp32_v4_t", "Dv4_f"},
+{"__spv_fp32_v8_t", "Dv8_f"},
+{"__spv_fp32_v16_t", "Dv16_f"},
+{"__spv_fp64_t", "d"},
+{"__spv_fp64_v2_t", "Dv2_d"},
+{"__spv_fp64_v3_t", "Dv3_d"},
+{"__spv_fp64_v4_t", "Dv4_d"},
+{"__spv_fp64_v8_t", "Dv8_d"},
+{"__spv_fp64_v16_t", "Dv16_d"}
 };
   // Ensure each test has a unique name by numbering them.
   unsigned TestID = 0;
   OS << R"(
-// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK
-// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK
-// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK
-// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK
-// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple nvptx64 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=NV
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK,CHECK-Float16
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv64 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK,CHECK-half
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -fsycl-is-device -o - | FileCheck %s -check-prefixes=CHECK,CHECK-Float16
+// RUN: %clang_cc1 -Wno-unused-value -O0 -internal-isystem %S/../../lib/Headers -include __clang_spirv_builtins.h -triple spirv32 -emit-llvm %s -x cl -o - | FileCheck %s -check-prefixes=CHECK,CHECK-half
 
 #include "__clang_spirv_builtins.h"
 )";
@@ -1543,29 +1610,35 @@ static std::map <std::string, std::string> TypeToMangle {
     OS << "// Test " << Name << "\n";
 
     auto EmitCheck = [&](StringRef Prefix, StringRef Name,
-                         ArrayRef<std::string> Signature) {
-      OS << "// " << Prefix << ": call noundef ";
+                         ArrayRef<std::string> Signature, bool useHalf) {
+      OS << "// " << Prefix << ": call {{.*}} ";
       OS << TypeToLLVM[Signature[0]] << " @_Z" << Name.size() << Name;
       if (Signature.size() == 1)
         OS << "v";
       else {
         for (unsigned I = 1; I < Signature.size(); I++) {
-          OS << TypeToMangle[Signature[I]];
+          OS << (useHalf ? TypeToMangleWithHalf[Signature[I]] : TypeToMangle[Signature[I]]);
         }
       }
       OS << "(";
       for (unsigned I = 1; I < Signature.size(); I++) {
         if (I != 1)
           OS << ", ";
-        OS << TypeToMangle[Signature[I]] << " {{.*}}";
+        OS << TypeToLLVM[Signature[I]] << " {{.*}}";
       }
       OS << ")\n";
     };
 
     for (const auto &Signature : FTypes) {
 
-      EmitCheck("CHECK", Name, Signature);
-      EmitCheck("NV", Name, Signature);
+      bool hasHalf = llvm::find_if(Signature, [](const std::string& str) { return str.find("fp16") != std::string::npos; }) != Signature.end();
+      if (hasHalf) {
+        EmitCheck("CHECK-Float16", Name, Signature, false);
+        EmitCheck("CHECK-half", Name, Signature, true);
+      }
+      else
+        EmitCheck("CHECK", Name, Signature, false);
+      //EmitCheck("NV", Name, Signature);
 
       // Emit function declaration.
       OS << Signature[0] << " test" << TestID++ << "_" << Name << "(";
